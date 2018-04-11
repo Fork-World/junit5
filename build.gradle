@@ -18,7 +18,7 @@ buildscript {
 }
 
 plugins {
-	id 'com.gradle.build-scan' version '1.12.1'
+	id 'com.gradle.build-scan' version '1.13'
 	id 'net.nemerosa.versioning' version '2.6.1'
 }
 
@@ -117,7 +117,7 @@ allprojects { subproj ->
 	if (project.hasProperty('enableJaCoCo')) {
 		apply plugin: "jacoco"
 		jacoco {
-			toolVersion = '0.8.0'
+			toolVersion = '0.8.1'
 		}
 	}
 
@@ -338,6 +338,7 @@ subprojects { subproj ->
 			options.addStringOption('Xdoclint:html,syntax', '-quiet')
 			options.addMultilineStringsOption('tag').setValue(['apiNote:a:API Note:', 'implSpec:a:Implementation Requirements:', 'implNote:a:Implementation Note:'])
 			options.encoding = 'UTF-8'
+			options.noTimestamp = true
 			// Remove Kotlin classes from classpath due to "bad" class file: AssertionsKt$sam$Supplier$44378ebd.class
 			// see https://bugs.openjdk.java.net/browse/JDK-8187422
 			classpath = classpath - files(compileKotlin.destinationDir)
@@ -560,11 +561,11 @@ subprojects { subproj ->
 			dependsOn = [versionedProject.classes]
 			doLast {
 				project.exec {
-					executable 'jar'
+					executable "${System.properties['java.home']}/bin/jar"
 					args = ['--version']
 				}
 				project.exec {
-					executable 'jar'
+					executable "${System.properties['java.home']}/bin/jar"
 					args = ['--update','--file', archivePath,
 							'--release', version,
 							'-C', versionedProject.compileJava.destinationDir,
@@ -674,6 +675,7 @@ configure(rootProject) {
 		options.addStringOption('Xdoclint:none', '-quiet')
 		options.addMultilineStringsOption('tag').setValue(['apiNote:a:API Note:', 'implSpec:a:Implementation Requirements:', 'implNote:a:Implementation Note:'])
 		options.encoding = 'UTF-8'
+		options.noTimestamp = true
 		options.jFlags '-Xmx1g'
 		options.links(
 			'https://docs.oracle.com/javase/8/docs/api/',
@@ -836,7 +838,7 @@ configure(rootProject) {
 
 task wrapper(type: Wrapper) {
 	description = 'Generates gradlew and gradlew.bat scripts'
-	gradleVersion = '4.6'
+	gradleVersion = '4.7-rc-1'
 	/*
 	* Reasoning for using BIN:
 	* https://github.com/junit-team/junit5/pull/1012#discussion_r132061924

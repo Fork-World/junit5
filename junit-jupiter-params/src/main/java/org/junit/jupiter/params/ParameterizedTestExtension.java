@@ -10,6 +10,7 @@
 
 package org.junit.jupiter.params;
 
+import static org.junit.jupiter.params.aggregator.AggregationUtils.hasAggregator;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 import static org.junit.platform.commons.util.AnnotationUtils.findRepeatableAnnotations;
 import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
@@ -86,8 +87,9 @@ class ParameterizedTestExtension implements TestTemplateInvocationContextProvide
 	}
 
 	private Object[] consumedArguments(Object[] arguments, Method templateMethod) {
-		int parametersCount = templateMethod.getParameterCount();
-		return arguments.length > parametersCount ? Arrays.copyOf(arguments, parametersCount) : arguments;
+		int parameterCount = templateMethod.getParameterCount();
+		return hasAggregator(templateMethod) ? arguments
+				: (arguments.length > parameterCount ? Arrays.copyOf(arguments, parameterCount) : arguments);
 	}
 
 }
