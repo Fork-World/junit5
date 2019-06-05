@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.converter;
@@ -145,10 +145,10 @@ public class DefaultArgumentConverter extends SimpleArgumentConverter {
 				Preconditions.condition(source.length() == 1, () -> "String must have length of 1: " + source);
 				return source.charAt(0);
 			});
-			converters.put(Byte.class, Byte::valueOf);
-			converters.put(Short.class, Short::valueOf);
-			converters.put(Integer.class, Integer::valueOf);
-			converters.put(Long.class, Long::valueOf);
+			converters.put(Byte.class, Byte::decode);
+			converters.put(Short.class, Short::decode);
+			converters.put(Integer.class, Integer::decode);
+			converters.put(Long.class, Long::decode);
 			converters.put(Float.class, Float::valueOf);
 			converters.put(Double.class, Double::valueOf);
 			CONVERTERS = unmodifiableMap(converters);
@@ -218,6 +218,8 @@ public class DefaultArgumentConverter extends SimpleArgumentConverter {
 		static {
 			Map<Class<?>, Function<String, ?>> converters = new HashMap<>();
 
+			// java.lang
+			converters.put(Class.class, StringToCommonJavaTypesConverter::toClass);
 			// java.io and java.nio
 			converters.put(File.class, File::new);
 			converters.put(Charset.class, Charset::forName);
@@ -244,6 +246,15 @@ public class DefaultArgumentConverter extends SimpleArgumentConverter {
 		@Override
 		public Object convert(String source, Class<?> targetType) throws Exception {
 			return CONVERTERS.get(targetType).apply(source);
+		}
+
+		private static Class<?> toClass(String type) {
+			//@formatter:off
+			return ReflectionUtils
+					.tryToLoadClass(type)
+					.getOrThrow(cause -> new ArgumentConversionException(
+							"Failed to convert String \"" + type + "\" to type " + Class.class.getName(), cause));
+			//@formatter:on
 		}
 
 		private static URL toURL(String url) {

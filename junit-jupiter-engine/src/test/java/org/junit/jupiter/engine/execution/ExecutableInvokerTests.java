@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.execution;
@@ -19,26 +19,29 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.engine.config.JupiterConfiguration;
+import org.junit.jupiter.engine.execution.ExecutableInvoker.ReflectiveInterceptorCall;
 import org.junit.jupiter.engine.extension.ExtensionRegistry;
 import org.junit.platform.commons.util.ReflectionUtils;
-import org.junit.platform.engine.ConfigurationParameters;
 
 /**
  * Unit tests for {@link ExecutableInvoker}.
  *
  * @since 5.0
  */
-// @FullLogging(ExecutableInvoker.class)
 class ExecutableInvokerTests {
 
 	private static final String ENIGMA = "enigma";
@@ -48,17 +51,18 @@ class ExecutableInvokerTests {
 
 	private final ExtensionContext extensionContext = mock(ExtensionContext.class);
 
-	private final ConfigurationParameters configParams = mock(ConfigurationParameters.class);
+	private final JupiterConfiguration configuration = mock(JupiterConfiguration.class);
 
-	private ExtensionRegistry extensionRegistry = ExtensionRegistry.createRegistryWithDefaultExtensions(configParams);
+	private ExtensionRegistry extensionRegistry = ExtensionRegistry.createRegistryWithDefaultExtensions(configuration);
 
 	@Test
-	void constructorInjection() throws Exception {
+	void constructorInjection() {
 		register(new StringParameterResolver(), new NumberParameterResolver());
 
 		Class<ConstructorInjectionTestCase> outerClass = ConstructorInjectionTestCase.class;
 		Constructor<ConstructorInjectionTestCase> constructor = ReflectionUtils.getDeclaredConstructor(outerClass);
-		ConstructorInjectionTestCase outer = newInvoker().invoke(constructor, extensionContext, extensionRegistry);
+		ConstructorInjectionTestCase outer = newInvoker().invoke(constructor, Optional.empty(), extensionContext,
+			extensionRegistry, passthroughInterceptor());
 
 		assertNotNull(outer);
 		assertEquals(ENIGMA, outer.str);
@@ -66,17 +70,31 @@ class ExecutableInvokerTests {
 		Class<ConstructorInjectionTestCase.NestedTestCase> innerClass = ConstructorInjectionTestCase.NestedTestCase.class;
 		Constructor<ConstructorInjectionTestCase.NestedTestCase> innerConstructor = ReflectionUtils.getDeclaredConstructor(
 			innerClass);
-		ConstructorInjectionTestCase.NestedTestCase inner = newInvoker().invoke(innerConstructor, outer,
-			extensionContext, extensionRegistry);
+		ConstructorInjectionTestCase.NestedTestCase inner = newInvoker().invoke(innerConstructor, Optional.of(outer),
+			extensionContext, extensionRegistry, passthroughInterceptor());
 
 		assertNotNull(inner);
 		assertEquals(42, inner.num);
 	}
 
 	@Test
-	void invokingMethodsWithoutParameterDoesNotDependOnExtensions() throws Exception {
+	void constructorInjectionWithMissingResolver() {
+		Constructor<ConstructorInjectionTestCase> constructor = ReflectionUtils.getDeclaredConstructor(
+			ConstructorInjectionTestCase.class);
+
+		Exception exception = assertThrows(ParameterResolutionException.class, () -> newInvoker().invoke(constructor,
+			Optional.empty(), extensionContext, extensionRegistry, passthroughInterceptor()));
+
+		assertThat(exception.getMessage())//
+				.contains("No ParameterResolver registered for parameter [java.lang.String")//
+				.contains("in constructor")//
+				.contains(ConstructorInjectionTestCase.class.getName());
+	}
+
+	@Test
+	void invokingMethodsWithoutParameterDoesNotDependOnParameterResolvers() {
 		testMethodWithNoParameters();
-		extensionRegistry = null;
+		throwDuringParameterResolution(new RuntimeException("boom!"));
 
 		invokeMethod();
 
@@ -137,10 +155,8 @@ class ExecutableInvokerTests {
 		assertSame(extensionContext, extension.resolveArguments.extensionContext);
 		assertEquals(0, extension.resolveArguments.parameterContext.getIndex());
 		assertSame(instance, extension.resolveArguments.parameterContext.getTarget().get());
-		// @formatter:off
-		assertThat(extension.resolveArguments.parameterContext.toString())
+		assertThat(extension.resolveArguments.parameterContext.toString())//
 				.contains("parameter", String.class.getTypeName(), "index", "0", "target", "Mock");
-		// @formatter:on
 	}
 
 	@Test
@@ -172,6 +188,7 @@ class ExecutableInvokerTests {
 
 		// @formatter:off
 		assertThat(caught.getMessage())
+				.contains("in method")
 				.contains("resolved a null value for parameter [int")
 				.contains("but a primitive of type [int] is required.");
 		// @formatter:on
@@ -183,7 +200,7 @@ class ExecutableInvokerTests {
 
 		ParameterResolutionException caught = assertThrows(ParameterResolutionException.class, this::invokeMethod);
 
-		assertThat(caught.getMessage()).contains("parameter [java.lang.String");
+		assertThat(caught.getMessage()).contains("parameter [java.lang.String").contains("in method");
 	}
 
 	@Test
@@ -194,10 +211,12 @@ class ExecutableInvokerTests {
 
 		ParameterResolutionException caught = assertThrows(ParameterResolutionException.class, this::invokeMethod);
 
+		String className = Pattern.quote(ConfigurableParameterResolver.class.getName());
+
 		// @formatter:off
 		assertThat(caught.getMessage())
-				.contains("parameter [java.lang.String")
-				.contains(ConfigurableParameterResolver.class.getName() + ", " + ConfigurableParameterResolver.class.getName());
+				.matches("Discovered multiple competing ParameterResolvers for parameter \\[java.lang.String .+?\\] " +
+						"in method .+: " + className + "@.+, " + className + "@.+");
 		// @formatter:on
 	}
 
@@ -211,6 +230,7 @@ class ExecutableInvokerTests {
 		// @formatter:off
 		assertThat(caught.getMessage())
 				.contains("resolved a value of type [java.math.BigDecimal] for parameter [java.lang.String")
+				.contains("in method")
 				.contains("but a value assignment compatible with [java.lang.String] is required.");
 		// @formatter:on
 	}
@@ -224,7 +244,21 @@ class ExecutableInvokerTests {
 		ParameterResolutionException caught = assertThrows(ParameterResolutionException.class, this::invokeMethod);
 
 		assertSame(cause, caught.getCause(), () -> "cause should be present");
-		assertThat(caught.getMessage()).startsWith("Failed to resolve parameter [java.lang.String");
+		assertThat(caught.getMessage())//
+				.matches("^Failed to resolve parameter \\[java.lang.String .+?\\] in method \\[.+?\\]$");
+	}
+
+	@Test
+	void exceptionMessageContainsMessageFromEexceptionThrownDuringParameterResolution() {
+		anyTestMethodWithAtLeastOneParameter();
+		RuntimeException cause = new RuntimeException("boom!");
+		throwDuringParameterResolution(cause);
+
+		ParameterResolutionException caught = assertThrows(ParameterResolutionException.class, this::invokeMethod);
+
+		assertSame(cause, caught.getCause(), () -> "cause should be present");
+		assertThat(caught.getMessage())//
+				.matches("^Failed to resolve parameter \\[java.lang.String .+?\\] in method \\[.+?\\]: boom!$");
 	}
 
 	@Test
@@ -285,7 +319,12 @@ class ExecutableInvokerTests {
 	}
 
 	private void invokeMethod() {
-		newInvoker().invoke(this.method, this.instance, this.extensionContext, this.extensionRegistry);
+		newInvoker().invoke(this.method, this.instance, this.extensionContext, this.extensionRegistry,
+			passthroughInterceptor());
+	}
+
+	static <E extends Executable, T> ReflectiveInterceptorCall<E, T> passthroughInterceptor() {
+		return (interceptor, invocation, invocationContext, extensionContext) -> invocation.proceed();
 	}
 
 	// -------------------------------------------------------------------------

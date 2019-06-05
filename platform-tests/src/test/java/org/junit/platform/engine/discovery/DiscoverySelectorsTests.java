@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine.discovery;
@@ -15,6 +15,7 @@ import static java.util.Collections.singleton;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClasspathResource;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClasspathRoots;
@@ -38,13 +39,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.extensions.TempDirectory;
-import org.junit.jupiter.extensions.TempDirectory.Root;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.util.ReflectionUtils;
 
 /**
@@ -246,16 +245,16 @@ class DiscoverySelectorsTests {
 	static Stream<Arguments> invalidFullyQualifiedMethodNames() {
 		// @formatter:off
 		return Stream.of(
-			Arguments.of(null, "must not be null or blank"),
-			Arguments.of("", "must not be null or blank"),
-			Arguments.of("   ", "must not be null or blank"),
-			Arguments.of("com.example", "not a valid fully qualified method name"),
-			Arguments.of("com.example.Foo", "not a valid fully qualified method name"),
-			Arguments.of("method", "not a valid fully qualified method name"),
-			Arguments.of("#method", "not a valid fully qualified method name"),
-			Arguments.of("#method()", "not a valid fully qualified method name"),
-			Arguments.of("#method(int)", "not a valid fully qualified method name"),
-			Arguments.of("java.lang.String#", "not a valid fully qualified method name")
+			arguments(null, "must not be null or blank"),
+			arguments("", "must not be null or blank"),
+			arguments("   ", "must not be null or blank"),
+			arguments("com.example", "not a valid fully qualified method name"),
+			arguments("com.example.Foo", "not a valid fully qualified method name"),
+			arguments("method", "not a valid fully qualified method name"),
+			arguments("#method", "not a valid fully qualified method name"),
+			arguments("#method()", "not a valid fully qualified method name"),
+			arguments("#method(int)", "not a valid fully qualified method name"),
+			arguments("java.lang.String#", "not a valid fully qualified method name")
 		);
 		// @formatter:on
 	}
@@ -573,8 +572,7 @@ class DiscoverySelectorsTests {
 	}
 
 	@Test
-	@ExtendWith(TempDirectory.class)
-	void selectClasspathRootsWithExistingDirectory(@Root Path tempDir) {
+	void selectClasspathRootsWithExistingDirectory(@TempDir Path tempDir) {
 		List<ClasspathRootSelector> selectors = selectClasspathRoots(singleton(tempDir));
 
 		assertThat(selectors).extracting(ClasspathRootSelector::getClasspathRoot).containsExactly(tempDir.toUri());
@@ -611,7 +609,7 @@ class DiscoverySelectorsTests {
 		}
 	}
 
-	static class TestCaseWithDefaultMethod implements TestInterface {
+	private static class TestCaseWithDefaultMethod implements TestInterface {
 	}
 
 	void myTest() {

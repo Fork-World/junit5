@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine.discovery;
@@ -40,12 +40,13 @@ class IncludeClassNameFilter extends AbstractClassNameFilter {
 				.orElseGet(() -> excluded(formatExclusionReason(className)));
 	}
 
-	private String formatExclusionReason(String className) {
-		return String.format("Class name [%s] does not match any included pattern: %s", className, patternDescription);
-	}
-
 	private String formatInclusionReason(String className, Pattern pattern) {
 		return String.format("Class name [%s] matches included pattern: '%s'", className, pattern);
+	}
+
+	private String formatExclusionReason(String className) {
+		return String.format("Class name [%s] does not match any included pattern: %s", className,
+			this.patternDescription);
 	}
 
 	@Override
@@ -55,7 +56,8 @@ class IncludeClassNameFilter extends AbstractClassNameFilter {
 
 	@Override
 	public String toString() {
-		return "Includes class names that match regular expression " + patternDescription;
+		return String.format("%s that includes class names that match one of the following regular expressions: %s",
+			getClass().getSimpleName(), this.patternDescription);
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine.discovery;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apiguardian.api.API;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.DiscoverySelector;
@@ -50,11 +50,9 @@ import org.junit.platform.engine.UniqueId;
 @API(status = STABLE, since = "1.0")
 public final class DiscoverySelectors {
 
-	///CLOVER:OFF
 	private DiscoverySelectors() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	/**
 	 * Create a {@code UriSelector} for the supplied URI.
@@ -342,7 +340,7 @@ public final class DiscoverySelectors {
 	 *
 	 * <h3>Examples</h3>
 	 *
-	 * <table border="1">
+	 * <table class="plain">
 	 * <tr><th>Method</th><th>Fully Qualified Method Name</th></tr>
 	 * <tr><td>{@code java.lang.String.chars()}</td><td>{@code java.lang.String#chars}</td></tr>
 	 * <tr><td>{@code java.lang.String.chars()}</td><td>{@code java.lang.String#chars()}</td></tr>

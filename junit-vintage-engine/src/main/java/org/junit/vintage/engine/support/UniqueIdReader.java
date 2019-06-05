@@ -1,21 +1,20 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.vintage.engine.support;
 
 import static java.lang.String.format;
 import static org.apiguardian.api.API.Status.INTERNAL;
-import static org.junit.platform.commons.util.ReflectionUtils.readFieldValue;
+import static org.junit.platform.commons.util.ReflectionUtils.tryToReadFieldValue;
 
 import java.io.Serializable;
-import java.util.Optional;
 import java.util.function.Function;
 
 import org.apiguardian.api.API;
@@ -44,12 +43,14 @@ public class UniqueIdReader implements Function<Description, Serializable> {
 
 	@Override
 	public Serializable apply(Description description) {
-		Optional<Object> result = readFieldValue(Description.class, fieldName, description);
-		return result.map(Serializable.class::cast).orElseGet(() -> {
-			logger.warn(
-				() -> format("Could not read unique ID for Description; using display name instead: %s", description));
-			return description.getDisplayName();
-		});
+		// @formatter:off
+		return tryToReadFieldValue(Description.class, fieldName, description)
+				.andThenTry(Serializable.class::cast)
+				.ifFailure(cause -> logger.warn(cause, () ->
+						format("Could not read unique ID for Description; using display name instead: %s", description)))
+				.toOptional()
+				.orElseGet(description::getDisplayName);
+		// @formatter:on
 	}
 
 }

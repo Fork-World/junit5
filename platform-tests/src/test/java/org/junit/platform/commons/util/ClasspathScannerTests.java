@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -27,7 +27,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -35,10 +34,10 @@ import java.util.logging.LogRecord;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.engine.TrackLogRecords;
-import org.junit.jupiter.extensions.TempDirectory;
-import org.junit.jupiter.extensions.TempDirectory.Root;
+import org.junit.platform.commons.PreconditionViolationException;
+import org.junit.platform.commons.function.Try;
 import org.junit.platform.commons.logging.LogRecordListener;
 
 /**
@@ -53,11 +52,8 @@ class ClasspathScannerTests {
 
 	private final List<Class<?>> loadedClasses = new ArrayList<>();
 
-	private final BiFunction<String, ClassLoader, Optional<Class<?>>> trackingClassLoader = (name, classLoader) -> {
-		Optional<Class<?>> loadedClass = ReflectionUtils.loadClass(name, classLoader);
-		loadedClass.ifPresent(loadedClasses::add);
-		return loadedClass;
-	};
+	private final BiFunction<String, ClassLoader, Try<Class<?>>> trackingClassLoader = (name,
+			classLoader) -> ReflectionUtils.tryToLoadClass(name, classLoader).ifSuccess(loadedClasses::add);
 
 	private final ClasspathScanner classpathScanner = new ClasspathScanner(ClassLoaderUtils::getDefaultClassLoader,
 		trackingClassLoader);
@@ -130,13 +126,12 @@ class ClasspathScannerTests {
 		assertThat(listener.stream(ClasspathScanner.class, Level.FINE)
 				.map(LogRecord::getMessage)
 				.filter(m -> m.matches(regex))
-				.count()
-		).isEqualTo(1);
+		).hasSize(1);
 		// @formatter:on
 	}
 
 	@Test
-	void scanForClassesInClasspathRootWhenOutOfMemoryErrorOccurs() throws Exception {
+	void scanForClassesInClasspathRootWhenOutOfMemoryErrorOccurs() {
 		Predicate<Class<?>> outOfMemoryErrorSimulationFilter = clazz -> {
 			if (clazz.getSimpleName().equals(ClassForOutOfMemoryErrorSimulation.class.getSimpleName())) {
 				throw new OutOfMemoryError();
@@ -163,7 +158,8 @@ class ClasspathScannerTests {
 		URL jarfile = getClass().getResource(resourceName);
 
 		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarfile })) {
-			ClasspathScanner classpathScanner = new ClasspathScanner(() -> classLoader, ReflectionUtils::loadClass);
+			ClasspathScanner classpathScanner = new ClasspathScanner(() -> classLoader,
+				ReflectionUtils::tryToLoadClass);
 
 			List<Class<?>> classes = classpathScanner.scanForClassesInClasspathRoot(jarfile.toURI(), allClasses);
 			List<String> classNames = classes.stream().map(Class::getName).collect(Collectors.toList());
@@ -175,7 +171,7 @@ class ClasspathScannerTests {
 	}
 
 	@Test
-	void scanForClassesInPackage() throws Exception {
+	void scanForClassesInPackage() {
 		List<Class<?>> classes = classpathScanner.scanForClassesInPackage("org.junit.platform.commons", allClasses);
 		assertThat(classes.size()).isGreaterThanOrEqualTo(20);
 		assertTrue(classes.contains(NestedClassToBeFound.class));
@@ -187,7 +183,8 @@ class ClasspathScannerTests {
 		URL jarfile = getClass().getResource("/jartest.jar");
 
 		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarfile })) {
-			ClasspathScanner classpathScanner = new ClasspathScanner(() -> classLoader, ReflectionUtils::loadClass);
+			ClasspathScanner classpathScanner = new ClasspathScanner(() -> classLoader,
+				ReflectionUtils::tryToLoadClass);
 
 			List<Class<?>> classes = classpathScanner.scanForClassesInPackage("org.junit.platform.jartest.included",
 				allClasses);
@@ -199,7 +196,7 @@ class ClasspathScannerTests {
 	}
 
 	@Test
-	void scanForClassesInDefaultPackage() throws Exception {
+	void scanForClassesInDefaultPackage() {
 		ClassFilter classFilter = ClassFilter.of(this::inDefaultPackage);
 		List<Class<?>> classes = classpathScanner.scanForClassesInPackage("", classFilter);
 
@@ -209,7 +206,7 @@ class ClasspathScannerTests {
 	}
 
 	@Test
-	void scanForClassesInPackageWithFilter() throws Exception {
+	void scanForClassesInPackageWithFilter() {
 		ClassFilter thisClassOnly = ClassFilter.of(clazz -> clazz == ClasspathScannerTests.class);
 		List<Class<?>> classes = classpathScanner.scanForClassesInPackage("org.junit.platform.commons", thisClassOnly);
 		assertSame(ClasspathScannerTests.class, classes.get(0));
@@ -235,13 +232,13 @@ class ClasspathScannerTests {
 
 	@Test
 	void scanForClassesInPackageWhenIOExceptionOccurs() {
-		ClasspathScanner scanner = new ClasspathScanner(ThrowingClassLoader::new, ReflectionUtils::loadClass);
+		ClasspathScanner scanner = new ClasspathScanner(ThrowingClassLoader::new, ReflectionUtils::tryToLoadClass);
 		List<Class<?>> classes = scanner.scanForClassesInPackage("org.junit.platform.commons", allClasses);
 		assertThat(classes).isEmpty();
 	}
 
 	@Test
-	void scanForClassesInPackageOnlyLoadsClassesThatAreIncludedByTheClassNameFilter() throws Exception {
+	void scanForClassesInPackageOnlyLoadsClassesThatAreIncludedByTheClassNameFilter() {
 		Predicate<String> classNameFilter = name -> ClasspathScannerTests.class.getName().equals(name);
 		ClassFilter classFilter = ClassFilter.of(classNameFilter, type -> true);
 
@@ -270,8 +267,7 @@ class ClasspathScannerTests {
 	}
 
 	@Test
-	@ExtendWith(TempDirectory.class)
-	void doesNotLoopInfinitelyWithCircularSymlinks(@Root Path tempDir) throws Exception {
+	void doesNotLoopInfinitelyWithCircularSymlinks(@TempDir Path tempDir) throws Exception {
 
 		// Abort if running on Microsoft Windows since we are testing symbolic links
 		assumeFalse(System.getProperty("os.name").toLowerCase().contains("win"));
@@ -301,19 +297,19 @@ class ClasspathScannerTests {
 	}
 
 	@Test
-	void findAllClassesInClasspathRootForNullRoot() throws Exception {
+	void findAllClassesInClasspathRootForNullRoot() {
 		assertThrows(PreconditionViolationException.class,
 			() -> classpathScanner.scanForClassesInClasspathRoot(null, allClasses));
 	}
 
 	@Test
-	void findAllClassesInClasspathRootForNonExistingRoot() throws Exception {
+	void findAllClassesInClasspathRootForNonExistingRoot() {
 		assertThrows(PreconditionViolationException.class,
 			() -> classpathScanner.scanForClassesInClasspathRoot(Paths.get("does_not_exist").toUri(), allClasses));
 	}
 
 	@Test
-	void findAllClassesInClasspathRootForNullClassFilter() throws Exception {
+	void findAllClassesInClasspathRootForNullClassFilter() {
 		assertThrows(PreconditionViolationException.class,
 			() -> classpathScanner.scanForClassesInClasspathRoot(getTestClasspathRoot(), null));
 	}

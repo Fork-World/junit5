@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params;
@@ -29,7 +29,10 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.TestInstances;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
+import org.junit.jupiter.engine.execution.ExtensionValuesStore;
+import org.junit.jupiter.engine.execution.NamespaceAwareStore;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.ArgumentsProvider;
 import org.junit.jupiter.params.provider.ArgumentsSource;
@@ -70,12 +73,16 @@ class ParameterizedTestExtensionTests {
 	@Test
 	void streamsReturnedByProvidersAreClosedWhenCallingProvide() {
 		ExtensionContext extensionContext = getExtensionContextReturningSingleMethod(
-			new TestCaseWithArgumentSourceAnnotatedMethod());
+			new ArgumentsProviderWithCloseHandlerTestCase());
+		// we need to call supportsTestTemplate() first, because it creates and
+		// puts the ParameterizedTestMethodContext into the Store
+		this.parameterizedTestExtension.supportsTestTemplate(extensionContext);
 
 		Stream<TestTemplateInvocationContext> stream = this.parameterizedTestExtension.provideTestTemplateInvocationContexts(
 			extensionContext);
 
-		//cause the stream to be evaluated
+		assertFalse(streamWasClosed);
+		// cause the stream to be evaluated
 		stream.count();
 		assertTrue(streamWasClosed);
 	}
@@ -98,12 +105,46 @@ class ParameterizedTestExtensionTests {
 
 		Stream<TestTemplateInvocationContext> stream = this.parameterizedTestExtension.provideTestTemplateInvocationContexts(
 			extensionContextWithAnnotatedTestMethod);
-		//cause the stream to be evaluated
+		// cause the stream to be evaluated
 		stream.toArray();
 		JUnitException exception = assertThrows(JUnitException.class, stream::close);
 
 		assertThat(exception).hasMessage(
-			"Configuration error: You must provide at least one argument for this @ParameterizedTest");
+			"Configuration error: You must configure at least one set of arguments for this @ParameterizedTest");
+	}
+
+	@Test
+	void throwsExceptionWhenArgumentsProviderIsNotStatic() {
+		ExtensionContext extensionContextWithAnnotatedTestMethod = getExtensionContextReturningSingleMethod(
+			new NonStaticArgumentsProviderTestCase());
+
+		Stream<TestTemplateInvocationContext> stream = this.parameterizedTestExtension.provideTestTemplateInvocationContexts(
+			extensionContextWithAnnotatedTestMethod);
+
+		JUnitException exception = assertThrows(JUnitException.class, stream::toArray);
+
+		assertArgumentsProviderInstantiationException(exception, NonStaticArgumentsProvider.class);
+	}
+
+	@Test
+	void throwsExceptionWhenArgumentsProviderDoesNotContainNoArgumentConstructor() {
+		ExtensionContext extensionContextWithAnnotatedTestMethod = getExtensionContextReturningSingleMethod(
+			new MissingNoArgumentsConstructorArgumentsProviderTestCase());
+
+		Stream<TestTemplateInvocationContext> stream = this.parameterizedTestExtension.provideTestTemplateInvocationContexts(
+			extensionContextWithAnnotatedTestMethod);
+
+		JUnitException exception = assertThrows(JUnitException.class, stream::toArray);
+
+		assertArgumentsProviderInstantiationException(exception, MissingNoArgumentsConstructorArgumentsProvider.class);
+	}
+
+	private <T> void assertArgumentsProviderInstantiationException(JUnitException exception, Class<T> clazz) {
+		assertThat(exception).hasMessage(
+			String.format("Failed to find a no-argument constructor for ArgumentsProvider [%s]. "
+					+ "Please ensure that a no-argument constructor exists and "
+					+ "that the class is either a top-level class or a static nested class",
+				clazz.getName()));
 	}
 
 	private ExtensionContext getExtensionContextReturningSingleMethod(Object testCase) {
@@ -115,6 +156,8 @@ class ParameterizedTestExtensionTests {
 		// @formatter:on
 
 		return new ExtensionContext() {
+
+			private final ExtensionValuesStore store = new ExtensionValuesStore(null);
 
 			@Override
 			public Optional<Method> getTestMethod() {
@@ -167,6 +210,11 @@ class ParameterizedTestExtensionTests {
 			}
 
 			@Override
+			public Optional<TestInstances> getTestInstances() {
+				return Optional.empty();
+			}
+
+			@Override
 			public Optional<Throwable> getExecutionException() {
 				return Optional.empty();
 			}
@@ -182,7 +230,7 @@ class ParameterizedTestExtensionTests {
 
 			@Override
 			public Store getStore(Namespace namespace) {
-				return null;
+				return new NamespaceAwareStore(store, namespace);
 			}
 		};
 	}
@@ -203,13 +251,12 @@ class ParameterizedTestExtensionTests {
 		}
 	}
 
-	static class TestCaseWithArgumentSourceAnnotatedMethod {
+	static class ArgumentsProviderWithCloseHandlerTestCase {
 
 		@ParameterizedTest
 		@ArgumentsSource(ArgumentsProviderWithCloseHandler.class)
 		void method(String parameter) {
 		}
-
 	}
 
 	static class ArgumentsProviderWithCloseHandler implements ArgumentsProvider {
@@ -218,6 +265,41 @@ class ParameterizedTestExtensionTests {
 		public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
 			Stream<Arguments> argumentsStream = Stream.of("foo", "bar").map(Arguments::of);
 			return argumentsStream.onClose(() -> streamWasClosed = true);
+		}
+	}
+
+	static class NonStaticArgumentsProviderTestCase {
+
+		@ParameterizedTest
+		@ArgumentsSource(NonStaticArgumentsProvider.class)
+		void method() {
+		}
+	}
+
+	class NonStaticArgumentsProvider implements ArgumentsProvider {
+
+		@Override
+		public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
+			return null;
+		}
+	}
+
+	static class MissingNoArgumentsConstructorArgumentsProviderTestCase {
+
+		@ParameterizedTest
+		@ArgumentsSource(MissingNoArgumentsConstructorArgumentsProvider.class)
+		void method() {
+		}
+	}
+
+	static class MissingNoArgumentsConstructorArgumentsProvider implements ArgumentsProvider {
+
+		MissingNoArgumentsConstructorArgumentsProvider(String parameter) {
+		}
+
+		@Override
+		public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
+			return null;
 		}
 	}
 

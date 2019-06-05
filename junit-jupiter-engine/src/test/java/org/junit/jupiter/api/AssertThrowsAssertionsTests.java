@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -14,12 +14,15 @@ import static org.junit.jupiter.api.AssertionTestUtils.assertMessageContains;
 import static org.junit.jupiter.api.AssertionTestUtils.assertMessageEquals;
 import static org.junit.jupiter.api.AssertionTestUtils.assertMessageStartsWith;
 import static org.junit.jupiter.api.AssertionTestUtils.expectAssertionFailedError;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
+import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
@@ -35,49 +38,73 @@ class AssertThrowsAssertionsTests {
 	};
 
 	@Test
-	void assertThrowsThrowable() {
-		EnigmaThrowable enigmaThrowable = assertThrows(EnigmaThrowable.class, () -> {
+	void assertThrowsWithMethodReferenceForNonVoidReturnType() {
+		FutureTask<String> future = new FutureTask<>(() -> {
+			throw new RuntimeException("boom");
+		});
+		future.run();
+
+		ExecutionException exception = assertThrows(ExecutionException.class, future::get);
+		assertEquals("boom", exception.getCause().getMessage());
+	}
+
+	@Test
+	void assertThrowsWithMethodReferenceForVoidReturnType() {
+		var object = new Object();
+		IllegalMonitorStateException exception;
+
+		exception = assertThrows(IllegalMonitorStateException.class, object::notify);
+		assertNotNull(exception);
+
+		// Note that Object.wait(...) is an overloaded method with a void return type
+		exception = assertThrows(IllegalMonitorStateException.class, object::wait);
+		assertNotNull(exception);
+	}
+
+	@Test
+	void assertThrowsWithExecutableThatThrowsThrowable() {
+		EnigmaThrowable enigmaThrowable = assertThrows(EnigmaThrowable.class, (Executable) () -> {
 			throw new EnigmaThrowable();
 		});
 		assertNotNull(enigmaThrowable);
 	}
 
 	@Test
-	void assertThrowsThrowableWithMessage() {
-		EnigmaThrowable enigmaThrowable = assertThrows(EnigmaThrowable.class, () -> {
+	void assertThrowsWithExecutableThatThrowsThrowableWithMessage() {
+		EnigmaThrowable enigmaThrowable = assertThrows(EnigmaThrowable.class, (Executable) () -> {
 			throw new EnigmaThrowable();
 		}, "message");
 		assertNotNull(enigmaThrowable);
 	}
 
 	@Test
-	void assertThrowsThrowableWithMessageSupplier() {
-		EnigmaThrowable enigmaThrowable = assertThrows(EnigmaThrowable.class, () -> {
+	void assertThrowsWithExecutableThatThrowsThrowableWithMessageSupplier() {
+		EnigmaThrowable enigmaThrowable = assertThrows(EnigmaThrowable.class, (Executable) () -> {
 			throw new EnigmaThrowable();
 		}, () -> "message");
 		assertNotNull(enigmaThrowable);
 	}
 
 	@Test
-	void assertThrowsCheckedException() {
-		IOException exception = assertThrows(IOException.class, () -> {
+	void assertThrowsWithExecutableThatThrowsCheckedException() {
+		IOException exception = assertThrows(IOException.class, (Executable) () -> {
 			throw new IOException();
 		});
 		assertNotNull(exception);
 	}
 
 	@Test
-	void assertThrowsRuntimeException() {
-		IllegalStateException illegalStateException = assertThrows(IllegalStateException.class, () -> {
+	void assertThrowsWithExecutableThatThrowsRuntimeException() {
+		IllegalStateException illegalStateException = assertThrows(IllegalStateException.class, (Executable) () -> {
 			throw new IllegalStateException();
 		});
 		assertNotNull(illegalStateException);
 	}
 
 	@Test
-	void assertThrowsError() {
+	void assertThrowsWithExecutableThatThrowsError() {
 		StackOverflowError stackOverflowError = assertThrows(StackOverflowError.class,
-			AssertionTestUtils::recurseIndefinitely);
+			(Executable) AssertionTestUtils::recurseIndefinitely);
 		assertNotNull(stackOverflowError);
 	}
 
@@ -119,7 +146,7 @@ class AssertThrowsAssertionsTests {
 	@Test
 	void assertThrowsWithExecutableThatThrowsAnUnexpectedException() {
 		try {
-			assertThrows(IllegalStateException.class, () -> {
+			assertThrows(IllegalStateException.class, (Executable) () -> {
 				throw new NumberFormatException();
 			});
 			expectAssertionFailedError();
@@ -134,7 +161,7 @@ class AssertThrowsAssertionsTests {
 	@Test
 	void assertThrowsWithExecutableThatThrowsAnUnexpectedExceptionWithMessageString() {
 		try {
-			assertThrows(IllegalStateException.class, () -> {
+			assertThrows(IllegalStateException.class, (Executable) () -> {
 				throw new NumberFormatException();
 			}, "Custom message");
 			expectAssertionFailedError();
@@ -152,7 +179,7 @@ class AssertThrowsAssertionsTests {
 	@Test
 	void assertThrowsWithExecutableThatThrowsAnUnexpectedExceptionWithMessageSupplier() {
 		try {
-			assertThrows(IllegalStateException.class, () -> {
+			assertThrows(IllegalStateException.class, (Executable) () -> {
 				throw new NumberFormatException();
 			}, () -> "Custom message");
 			expectAssertionFailedError();
@@ -171,7 +198,7 @@ class AssertThrowsAssertionsTests {
 	@SuppressWarnings("serial")
 	void assertThrowsWithExecutableThatThrowsInstanceOfAnonymousInnerClassAsUnexpectedException() {
 		try {
-			assertThrows(IllegalStateException.class, () -> {
+			assertThrows(IllegalStateException.class, (Executable) () -> {
 				throw new NumberFormatException() {
 				};
 			});
@@ -191,7 +218,7 @@ class AssertThrowsAssertionsTests {
 	@Test
 	void assertThrowsWithExecutableThatThrowsInstanceOfStaticNestedClassAsUnexpectedException() {
 		try {
-			assertThrows(IllegalStateException.class, () -> {
+			assertThrows(IllegalStateException.class, (Executable) () -> {
 				throw new LocalException();
 			});
 			expectAssertionFailedError();
@@ -214,7 +241,7 @@ class AssertThrowsAssertionsTests {
 				EnigmaThrowable.class.getName());
 
 			try {
-				assertThrows(enigmaThrowableClass, () -> {
+				assertThrows(enigmaThrowableClass, (Executable) () -> {
 					throw new EnigmaThrowable();
 				});
 				expectAssertionFailedError();
@@ -235,6 +262,8 @@ class AssertThrowsAssertionsTests {
 		}
 	}
 
+	// -------------------------------------------------------------------------
+
 	@SuppressWarnings("serial")
 	private static class LocalException extends RuntimeException {
 	}
@@ -242,14 +271,8 @@ class AssertThrowsAssertionsTests {
 	private static class EnigmaClassLoader extends URLClassLoader {
 
 		EnigmaClassLoader() {
-			super(getUrlClassLoader().getURLs());
-		}
-
-		private static URLClassLoader getUrlClassLoader() {
-			ClassLoader systemClassLoader = getSystemClassLoader();
-			assumeTrue(systemClassLoader instanceof URLClassLoader,
-				"aborting test since system ClassLoader is not a URLClassLoader");
-			return (URLClassLoader) systemClassLoader;
+			super(new URL[] { EnigmaClassLoader.class.getProtectionDomain().getCodeSource().getLocation() },
+				getSystemClassLoader());
 		}
 
 		@Override

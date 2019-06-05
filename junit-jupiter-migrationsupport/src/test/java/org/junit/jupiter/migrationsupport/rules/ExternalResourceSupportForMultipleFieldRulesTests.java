@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.migrationsupport.rules;
@@ -31,7 +31,7 @@ public class ExternalResourceSupportForMultipleFieldRulesTests {
 	@Rule
 	public ExternalResource resource1 = new ExternalResource() {
 		@Override
-		protected void before() throws Throwable {
+		protected void before() {
 			beforeOfRule1WasExecuted = true;
 		}
 
@@ -44,7 +44,7 @@ public class ExternalResourceSupportForMultipleFieldRulesTests {
 	@Rule
 	public ExternalResource resource2 = new ExternalResource() {
 		@Override
-		protected void before() throws Throwable {
+		protected void before() {
 			beforeOfRule2WasExecuted = true;
 		}
 

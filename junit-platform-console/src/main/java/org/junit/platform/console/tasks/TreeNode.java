@@ -1,20 +1,20 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.console.tasks;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.junit.platform.commons.util.StringUtils;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.launcher.TestIdentifier;
@@ -30,8 +30,8 @@ class TreeNode {
 	private String reason;
 	private TestIdentifier identifier;
 	private TestExecutionResult result;
-	List<ReportEntry> reports = Collections.emptyList();
-	List<TreeNode> children = Collections.emptyList();
+	final Queue<ReportEntry> reports = new ConcurrentLinkedQueue<>();
+	final Queue<TreeNode> children = new ConcurrentLinkedQueue<>();
 	boolean visible;
 
 	TreeNode(String caption) {
@@ -41,7 +41,7 @@ class TreeNode {
 	}
 
 	TreeNode(TestIdentifier identifier) {
-		this(identifier.getDisplayName());
+		this(createCaption(identifier.getDisplayName()));
 		this.identifier = identifier;
 		this.visible = true;
 	}
@@ -52,17 +52,11 @@ class TreeNode {
 	}
 
 	TreeNode addChild(TreeNode node) {
-		if (children == Collections.EMPTY_LIST) {
-			children = new ArrayList<>();
-		}
 		children.add(node);
 		return this;
 	}
 
 	TreeNode addReportEntry(ReportEntry reportEntry) {
-		if (reports == Collections.EMPTY_LIST) {
-			reports = new ArrayList<>();
-		}
 		reports.add(reportEntry);
 		return this;
 	}
@@ -87,5 +81,12 @@ class TreeNode {
 
 	Optional<TestIdentifier> identifier() {
 		return Optional.ofNullable(identifier);
+	}
+
+	static String createCaption(String displayName) {
+		boolean normal = displayName.length() <= 80;
+		String caption = normal ? displayName : displayName.substring(0, 80) + "...";
+		String whites = StringUtils.replaceWhitespaceCharacters(caption, " ");
+		return StringUtils.replaceIsoControlCharacters(whites, ".");
 	}
 }

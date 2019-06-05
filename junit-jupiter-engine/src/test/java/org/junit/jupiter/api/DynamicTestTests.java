@@ -1,27 +1,30 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.function.Executable;
 import org.junit.platform.commons.support.ReflectionSupport;
 import org.opentest4j.AssertionFailedError;
 
@@ -29,6 +32,9 @@ import org.opentest4j.AssertionFailedError;
  * @since 5.0
  */
 class DynamicTestTests {
+
+	private static final Executable nix = () -> {
+	};
 
 	private final List<String> assertedValues = new ArrayList<>();
 
@@ -77,6 +83,30 @@ class DynamicTestTests {
 		Throwable t50 = assertThrows(InvocationTargetException.class,
 			() -> dynamicTest("1 == 50", this::assert1Equals50Reflectively).getExecutable().execute());
 		assertThat(t50.getCause()).hasMessage("expected: <1> but was: <50>");
+	}
+
+	@Test
+	void testSourceUriIsNotPresentByDefault() {
+		DynamicTest test = dynamicTest("foo", nix);
+		assertThat(test.getTestSourceUri()).isNotPresent();
+		assertThat(test.toString()).isEqualTo("DynamicTest [displayName = 'foo', testSourceUri = null]");
+		DynamicContainer container = dynamicContainer("bar", Stream.of(test));
+		assertThat(container.getTestSourceUri()).isNotPresent();
+		assertThat(container.toString()).isEqualTo("DynamicContainer [displayName = 'bar', testSourceUri = null]");
+	}
+
+	@Test
+	void testSourceUriIsReturnedWhenSupplied() {
+		URI testSourceUri = URI.create("any://test");
+		DynamicTest test = dynamicTest("foo", testSourceUri, nix);
+		URI containerSourceUri = URI.create("other://container");
+		DynamicContainer container = dynamicContainer("bar", containerSourceUri, Stream.of(test));
+
+		assertThat(test.getTestSourceUri().get()).isSameAs(testSourceUri);
+		assertThat(test.toString()).isEqualTo("DynamicTest [displayName = 'foo', testSourceUri = any://test]");
+		assertThat(container.getTestSourceUri().get()).isSameAs(containerSourceUri);
+		assertThat(container.toString()).isEqualTo(
+			"DynamicContainer [displayName = 'bar', testSourceUri = other://container]");
 	}
 
 	private void assert1Equals48Directly() {

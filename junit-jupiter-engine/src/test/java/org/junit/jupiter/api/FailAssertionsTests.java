@@ -1,15 +1,16 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
 
+import static org.junit.jupiter.api.AssertionTestUtils.assertEmptyMessage;
 import static org.junit.jupiter.api.AssertionTestUtils.assertMessageContains;
 import static org.junit.jupiter.api.AssertionTestUtils.assertMessageEquals;
 import static org.junit.jupiter.api.AssertionTestUtils.expectAssertionFailedError;
@@ -27,6 +28,17 @@ import org.opentest4j.AssertionFailedError;
  * @since 5.0
  */
 class FailAssertionsTests {
+
+	@Test
+	void failWithoutArgument() {
+		try {
+			fail();
+			expectAssertionFailedError();
+		}
+		catch (AssertionFailedError ex) {
+			assertEmptyMessage(ex);
+		}
+	}
 
 	@Test
 	void failWithString() {
@@ -57,7 +69,7 @@ class FailAssertionsTests {
 			expectAssertionFailedError();
 		}
 		catch (AssertionFailedError ex) {
-			assertMessageEquals(ex, "");
+			assertEmptyMessage(ex);
 		}
 	}
 
@@ -68,7 +80,7 @@ class FailAssertionsTests {
 			expectAssertionFailedError();
 		}
 		catch (AssertionFailedError ex) {
-			assertMessageEquals(ex, "");
+			assertEmptyMessage(ex);
 		}
 	}
 
@@ -92,7 +104,7 @@ class FailAssertionsTests {
 			expectAssertionFailedError();
 		}
 		catch (AssertionFailedError ex) {
-			assertMessageEquals(ex, "");
+			assertEmptyMessage(ex);
 			Throwable cause = ex.getCause();
 			assertMessageContains(cause, "cause");
 		}
@@ -119,7 +131,7 @@ class FailAssertionsTests {
 			expectAssertionFailedError();
 		}
 		catch (AssertionFailedError ex) {
-			assertMessageEquals(ex, "");
+			assertEmptyMessage(ex);
 			Throwable cause = ex.getCause();
 			assertMessageContains(cause, "cause");
 		}

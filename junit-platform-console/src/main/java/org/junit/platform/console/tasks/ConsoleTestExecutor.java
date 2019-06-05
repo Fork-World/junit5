@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.console.tasks;
@@ -33,6 +33,7 @@ import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.core.LauncherFactory;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 import org.junit.platform.launcher.listeners.TestExecutionSummary;
+import org.junit.platform.reporting.legacy.xml.LegacyXmlReportGeneratingListener;
 
 /**
  * @since 1.0
@@ -122,7 +123,7 @@ public class ConsoleTestExecutor {
 	}
 
 	private Optional<TestExecutionListener> createXmlWritingListener(PrintWriter out) {
-		return options.getReportsDir().map(reportsDir -> new XmlReportsWritingListener(reportsDir, out));
+		return options.getReportsDir().map(reportsDir -> new LegacyXmlReportGeneratingListener(reportsDir, out));
 	}
 
 	private void printSummary(TestExecutionSummary summary, PrintWriter out) {

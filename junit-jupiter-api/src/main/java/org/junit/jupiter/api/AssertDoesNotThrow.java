@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -16,6 +16,9 @@ import static org.junit.jupiter.api.AssertionUtils.nullSafeGet;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.api.function.ThrowingSupplier;
+import org.junit.platform.commons.util.BlacklistedExceptions;
+import org.junit.platform.commons.util.StringUtils;
 import org.opentest4j.AssertionFailedError;
 
 /**
@@ -26,11 +29,9 @@ import org.opentest4j.AssertionFailedError;
  */
 class AssertDoesNotThrow {
 
-	///CLOVER:OFF
 	private AssertDoesNotThrow() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	static void assertDoesNotThrow(Executable executable) {
 		assertDoesNotThrow(executable, (Object) null);
@@ -49,10 +50,41 @@ class AssertDoesNotThrow {
 			executable.execute();
 		}
 		catch (Throwable t) {
-			String message = buildPrefix(nullSafeGet(messageOrSupplier)) + "Unexpected exception thrown: "
-					+ t.getClass().getName();
-			throw new AssertionFailedError(message, t);
+			BlacklistedExceptions.rethrowIfBlacklisted(t);
+			throw createAssertionFailedError(messageOrSupplier, t);
 		}
+	}
+
+	static <T> T assertDoesNotThrow(ThrowingSupplier<T> supplier) {
+		return assertDoesNotThrow(supplier, (Object) null);
+	}
+
+	static <T> T assertDoesNotThrow(ThrowingSupplier<T> supplier, String message) {
+		return assertDoesNotThrow(supplier, (Object) message);
+	}
+
+	static <T> T assertDoesNotThrow(ThrowingSupplier<T> supplier, Supplier<String> messageSupplier) {
+		return assertDoesNotThrow(supplier, (Object) messageSupplier);
+	}
+
+	private static <T> T assertDoesNotThrow(ThrowingSupplier<T> supplier, Object messageOrSupplier) {
+		try {
+			return supplier.get();
+		}
+		catch (Throwable t) {
+			BlacklistedExceptions.rethrowIfBlacklisted(t);
+			throw createAssertionFailedError(messageOrSupplier, t);
+		}
+	}
+
+	private static AssertionFailedError createAssertionFailedError(Object messageOrSupplier, Throwable t) {
+		String message = buildPrefix(nullSafeGet(messageOrSupplier)) + "Unexpected exception thrown: "
+				+ t.getClass().getName() + buildSuffix(t.getMessage());
+		return new AssertionFailedError(message, t);
+	}
+
+	private static String buildSuffix(String message) {
+		return StringUtils.isNotBlank(message) ? ": " + message : "";
 	}
 
 }

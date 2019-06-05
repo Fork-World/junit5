@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.execution;
@@ -14,13 +14,14 @@ import static org.apiguardian.api.API.Status.INTERNAL;
 
 import org.apiguardian.api.API;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.jupiter.engine.extension.ExtensionRegistry;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
-import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext;
+import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 /**
  * @since 5.0
@@ -33,11 +34,12 @@ public class JupiterEngineExecutionContext implements EngineExecutionContext {
 	private final State state;
 
 	// The following is not "cloneable" State.
+	private boolean beforeAllCallbacksExecuted = false;
 	private boolean beforeAllMethodsExecuted = false;
 
 	public JupiterEngineExecutionContext(EngineExecutionListener executionListener,
-			ConfigurationParameters configurationParameters) {
-		this(new State(executionListener, configurationParameters));
+			JupiterConfiguration configuration) {
+		this(new State(executionListener, configuration));
 	}
 
 	private JupiterEngineExecutionContext(State state) {
@@ -61,12 +63,12 @@ public class JupiterEngineExecutionContext implements EngineExecutionContext {
 		return this.state.executionListener;
 	}
 
-	public ConfigurationParameters getConfigurationParameters() {
-		return this.state.configurationParameters;
+	public JupiterConfiguration getConfiguration() {
+		return this.state.configuration;
 	}
 
-	public TestInstanceProvider getTestInstanceProvider() {
-		return this.state.testInstanceProvider;
+	public TestInstancesProvider getTestInstancesProvider() {
+		return this.state.testInstancesProvider;
 	}
 
 	public ExtensionRegistry getExtensionRegistry() {
@@ -81,10 +83,35 @@ public class JupiterEngineExecutionContext implements EngineExecutionContext {
 		return this.state.throwableCollector;
 	}
 
+	/**
+	 * Track that an attempt was made to execute {@code BeforeAllCallback} extensions.
+	 *
+	 * @since 5.3
+	 */
+	public void beforeAllCallbacksExecuted(boolean beforeAllCallbacksExecuted) {
+		this.beforeAllCallbacksExecuted = beforeAllCallbacksExecuted;
+	}
+
+	/**
+	 * @return {@code true} if an attempt was made to execute {@code BeforeAllCallback}
+	 * extensions
+	 * @since 5.3
+	 */
+	public boolean beforeAllCallbacksExecuted() {
+		return beforeAllCallbacksExecuted;
+	}
+
+	/**
+	 * Track that an attempt was made to execute {@code @BeforeAll} methods.
+	 */
 	public void beforeAllMethodsExecuted(boolean beforeAllMethodsExecuted) {
 		this.beforeAllMethodsExecuted = beforeAllMethodsExecuted;
 	}
 
+	/**
+	 * @return {@code true} if an attempt was made to execute {@code @BeforeAll}
+	 * methods
+	 */
 	public boolean beforeAllMethodsExecuted() {
 		return this.beforeAllMethodsExecuted;
 	}
@@ -96,15 +123,15 @@ public class JupiterEngineExecutionContext implements EngineExecutionContext {
 	private static final class State implements Cloneable {
 
 		final EngineExecutionListener executionListener;
-		final ConfigurationParameters configurationParameters;
-		TestInstanceProvider testInstanceProvider;
+		final JupiterConfiguration configuration;
+		TestInstancesProvider testInstancesProvider;
 		ExtensionRegistry extensionRegistry;
 		ExtensionContext extensionContext;
 		ThrowableCollector throwableCollector;
 
-		State(EngineExecutionListener executionListener, ConfigurationParameters configurationParameters) {
+		State(EngineExecutionListener executionListener, JupiterConfiguration configuration) {
 			this.executionListener = executionListener;
-			this.configurationParameters = configurationParameters;
+			this.configuration = configuration;
 		}
 
 		@Override
@@ -128,8 +155,8 @@ public class JupiterEngineExecutionContext implements EngineExecutionContext {
 			this.originalState = originalState;
 		}
 
-		public Builder withTestInstanceProvider(TestInstanceProvider testInstanceProvider) {
-			newState().testInstanceProvider = testInstanceProvider;
+		public Builder withTestInstancesProvider(TestInstancesProvider testInstancesProvider) {
+			newState().testInstancesProvider = testInstancesProvider;
 			return this;
 		}
 

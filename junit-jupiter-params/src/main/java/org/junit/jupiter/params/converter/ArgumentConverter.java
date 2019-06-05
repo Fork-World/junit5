@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.converter;
@@ -28,12 +28,16 @@ import org.junit.jupiter.api.extension.ParameterContext;
  * to know about the target type instead of the complete
  * {@link ParameterContext}.
  *
- * <p>Implementations must provide a no-args constructor.
+ * <p>Implementations must provide a no-args constructor and should not make any
+ * assumptions regarding when they are instantiated or how often they are called.
+ * Since instances may potentially be cached and called from different threads,
+ * they should be thread-safe and designed to be used as singletons.
  *
  * @since 5.0
  * @see SimpleArgumentConverter
  * @see org.junit.jupiter.params.ParameterizedTest
  * @see org.junit.jupiter.params.converter.ConvertWith
+ * @see org.junit.jupiter.params.support.AnnotationConsumer
  */
 @API(status = EXPERIMENTAL, since = "5.0")
 public interface ArgumentConverter {

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.descriptor;
@@ -20,10 +20,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.jupiter.engine.execution.ExtensionValuesStore;
 import org.junit.jupiter.engine.execution.NamespaceAwareStore;
 import org.junit.platform.commons.util.Preconditions;
-import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestTag;
@@ -38,19 +38,19 @@ abstract class AbstractExtensionContext<T extends TestDescriptor> implements Ext
 	private final EngineExecutionListener engineExecutionListener;
 	private final T testDescriptor;
 	private final Set<String> tags;
-	private final ConfigurationParameters configurationParameters;
+	private final JupiterConfiguration configuration;
 	private final ExtensionValuesStore valuesStore;
 
 	AbstractExtensionContext(ExtensionContext parent, EngineExecutionListener engineExecutionListener, T testDescriptor,
-			ConfigurationParameters configurationParameters) {
+			JupiterConfiguration configuration) {
 
 		Preconditions.notNull(testDescriptor, "TestDescriptor must not be null");
-		Preconditions.notNull(configurationParameters, "ConfigurationParameters must not be null");
+		Preconditions.notNull(configuration, "JupiterConfiguration must not be null");
 
 		this.parent = parent;
 		this.engineExecutionListener = engineExecutionListener;
 		this.testDescriptor = testDescriptor;
-		this.configurationParameters = configurationParameters;
+		this.configuration = configuration;
 		this.valuesStore = createStore(parent);
 
 		// @formatter:off
@@ -114,12 +114,12 @@ abstract class AbstractExtensionContext<T extends TestDescriptor> implements Ext
 	@Override
 	public Set<String> getTags() {
 		// return modifiable copy
-		return new LinkedHashSet<String>(this.tags);
+		return new LinkedHashSet<>(this.tags);
 	}
 
 	@Override
 	public Optional<String> getConfigurationParameter(String key) {
-		return this.configurationParameters.get(key);
+		return this.configuration.getRawConfigurationParameter(key);
 	}
 
 }

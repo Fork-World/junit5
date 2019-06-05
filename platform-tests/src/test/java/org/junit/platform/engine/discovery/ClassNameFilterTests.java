@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine.discovery;
@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.PreconditionViolationException;
 
 /**
  * @since 1.0
@@ -27,13 +27,13 @@ class ClassNameFilterTests {
 	void includeClassNamePatternsChecksPreconditions() {
 		assertThatThrownBy(() -> ClassNameFilter.includeClassNamePatterns((String[]) null)) //
 				.isInstanceOf(PreconditionViolationException.class) //
-				.hasMessage("patterns must not be null or empty");
+				.hasMessage("patterns array must not be null or empty");
 		assertThatThrownBy(() -> ClassNameFilter.includeClassNamePatterns(new String[0])) //
 				.isInstanceOf(PreconditionViolationException.class) //
-				.hasMessage("patterns must not be null or empty");
+				.hasMessage("patterns array must not be null or empty");
 		assertThatThrownBy(() -> ClassNameFilter.includeClassNamePatterns(new String[] { null })) //
 				.isInstanceOf(PreconditionViolationException.class) //
-				.hasMessage("patterns must not contain null elements");
+				.hasMessage("patterns array must not contain null elements");
 	}
 
 	@Test
@@ -42,7 +42,9 @@ class ClassNameFilterTests {
 
 		ClassNameFilter filter = ClassNameFilter.includeClassNamePatterns(regex);
 
-		assertThat(filter).hasToString("Includes class names that match regular expression '" + regex + "'");
+		assertThat(filter).hasToString(
+			"IncludeClassNameFilter that includes class names that match one of the following regular expressions: '"
+					+ regex + "'");
 
 		assertTrue(filter.apply("java.lang.String").included());
 		assertTrue(filter.toPredicate().test("java.lang.String"));
@@ -63,7 +65,8 @@ class ClassNameFilterTests {
 		ClassNameFilter filter = ClassNameFilter.includeClassNamePatterns(firstRegex, secondRegex);
 
 		assertThat(filter).hasToString(
-			"Includes class names that match regular expression '" + firstRegex + "' OR '" + secondRegex + "'");
+			"IncludeClassNameFilter that includes class names that match one of the following regular expressions: '"
+					+ firstRegex + "' OR '" + secondRegex + "'");
 
 		assertTrue(filter.apply("java.lang.String").included());
 		assertTrue(filter.toPredicate().test("java.lang.String"));
@@ -86,13 +89,13 @@ class ClassNameFilterTests {
 	void excludeClassNamePatternsChecksPreconditions() {
 		assertThatThrownBy(() -> ClassNameFilter.excludeClassNamePatterns((String[]) null)) //
 				.isInstanceOf(PreconditionViolationException.class) //
-				.hasMessage("patterns must not be null or empty");
+				.hasMessage("patterns array must not be null or empty");
 		assertThatThrownBy(() -> ClassNameFilter.excludeClassNamePatterns(new String[0])) //
 				.isInstanceOf(PreconditionViolationException.class) //
-				.hasMessage("patterns must not be null or empty");
+				.hasMessage("patterns array must not be null or empty");
 		assertThatThrownBy(() -> ClassNameFilter.excludeClassNamePatterns(new String[] { null })) //
 				.isInstanceOf(PreconditionViolationException.class) //
-				.hasMessage("patterns must not contain null elements");
+				.hasMessage("patterns array must not contain null elements");
 	}
 
 	@Test
@@ -101,7 +104,9 @@ class ClassNameFilterTests {
 
 		ClassNameFilter filter = ClassNameFilter.excludeClassNamePatterns(regex);
 
-		assertThat(filter).hasToString("Excludes class names that match regular expression '" + regex + "'");
+		assertThat(filter).hasToString(
+			"ExcludeClassNameFilter that excludes class names that match one of the following regular expressions: '"
+					+ regex + "'");
 
 		assertTrue(filter.apply("java.lang.String").excluded());
 		assertFalse(filter.toPredicate().test("java.lang.String"));
@@ -123,7 +128,8 @@ class ClassNameFilterTests {
 		ClassNameFilter filter = ClassNameFilter.excludeClassNamePatterns(firstRegex, secondRegex);
 
 		assertThat(filter).hasToString(
-			"Excludes class names that match regular expression '" + firstRegex + "' OR '" + secondRegex + "'");
+			"ExcludeClassNameFilter that excludes class names that match one of the following regular expressions: '"
+					+ firstRegex + "' OR '" + secondRegex + "'");
 
 		assertTrue(filter.apply("java.lang.String").excluded());
 		assertFalse(filter.toPredicate().test("java.lang.String"));

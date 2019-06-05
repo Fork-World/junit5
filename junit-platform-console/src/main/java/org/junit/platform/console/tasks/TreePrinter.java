@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.console.tasks;
@@ -69,7 +69,7 @@ class TreePrinter {
 	private void printVisible(TreeNode node, String indent, boolean continuous) {
 		String bullet = continuous ? theme.entry() : theme.end();
 		String prefix = color(CONTAINER, indent + bullet);
-		String tabbed = color(CONTAINER, indent + (continuous ? theme.vertical() : theme.blank()) + theme.blank());
+		String tabbed = color(CONTAINER, indent + tab(node, continuous));
 		String caption = colorCaption(node);
 		String duration = color(CONTAINER, node.duration + " ms");
 		String icon = color(SKIPPED, theme.skipped());
@@ -93,6 +93,17 @@ class TreePrinter {
 		out.println();
 	}
 
+	private String tab(TreeNode node, boolean continuous) {
+		// We might be the "last" node in this level, that means
+		// `continuous == false`, but still need to include a vertical
+		// bar for printing stack traces, messages and reports.
+		// See https://github.com/junit-team/junit5/issues/1531
+		if (node.children.size() > 0) {
+			return theme.blank() + theme.vertical();
+		}
+		return (continuous ? theme.vertical() : theme.blank()) + theme.blank();
+	}
+
 	private String colorCaption(TreeNode node) {
 		String caption = node.caption();
 		if (node.result().isPresent()) {
@@ -105,7 +116,8 @@ class TreePrinter {
 		if (node.reason().isPresent()) {
 			return color(SKIPPED, caption);
 		}
-		return color(Color.valueOf(node.identifier().orElseThrow(AssertionError::new)), caption);
+		Color color = node.identifier().map(Color::valueOf).orElse(Color.NONE);
+		return color(color, caption);
 	}
 
 	private void printThrowable(String indent, TestExecutionResult result) {

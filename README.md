@@ -2,14 +2,20 @@
 
 This repository is the home of the next generation of JUnit, _JUnit 5_.
 
-[JUnit 5.1.1](https://github.com/junit-team/junit5/releases/tag/r5.1.1)
-was released on April 8, 2018.
+[![Support us on Steady](https://img.shields.io/badge/support_us-on_Steady-ff7264.svg)](https://steadyhq.com/en/junit)
+
+## Latest Releases
+
+- General Availability (GA): [JUnit 5.4.2](https://github.com/junit-team/junit5/releases/tag/r5.4.2)
+(April 7, 2019).
+- Preview (Milestone/Release Candidate): [JUnit 5.5.0-M1](https://github.com/junit-team/junit5/releases/tag/r5.5.0-M1) (March 19, 2019).
 
 ## Documentation
 
 - [User Guide]
 - [Javadoc]
 - [Release Notes]
+- [Samples]
 
 ## Contributing
 
@@ -27,84 +33,75 @@ Ask JUnit 5 related questions on [StackOverflow] or chat with the team and the c
 
 ## Continuous Integration Builds
 
-| CI Server | OS      | Status | Description |
-| --------- | ------- | ------ | ----------- |
-| Jenkins   | Linux   | [![Build Status](https://junit.ci.cloudbees.com/job/JUnit5/job/master/badge/icon)](https://junit.ci.cloudbees.com/blue/organizations/jenkins/JUnit5/branches/) | Official CI build server for JUnit 5 |
-| Travis CI | Linux   | [![Travis CI build status](https://travis-ci.org/junit-team/junit5.svg?branch=master)](https://travis-ci.org/junit-team/junit5) | Used to perform quick checks on submitted pull requests and for build matrices including JDK 8 and JDK 9 early access builds |
-| AppVeyor  | Windows | [![Build status](https://ci.appveyor.com/api/projects/status/xv8wc8w9sr44ghc4/branch/master?svg=true)](https://ci.appveyor.com/project/marcphilipp/junit5/branch/master) | Used to ensure that JUnit 5 can be built on Windows |
+[![Build Status](https://dev.azure.com/junit-team/junit5/_apis/build/status/junit-team.junit5?branchName=master)](https://dev.azure.com/junit-team/junit5/_build/latest?definitionId=1&branchName=master)
+
+Official CI build server for JUnit 5. Used to perform quick checks on submitted pull
+requests and for build matrices including the latest released OpenJDK and early access
+builds of the next OpenJDK.
 
 ## Code Coverage
 
-Code coverage using [JaCoCo] for the latest build is available on the
-[Jenkins CI server] and on [Codecov].
+Code coverage using [JaCoCo] for the latest build is available on [Codecov].
 
-A code coverage report can also be generated locally by executing
-`gradlew -PenableJaCoCo clean jacocoRootReport`. The results will be available in
-`build/reports/jacoco/jacocoRootReport/html/index.html`.
-Alternatively, [OpenClover] can be used locally via
-`gradlew -PenableClover clean cloverHtmlReport`. The results will be available in
-`build/reports/clover/html/index.html`.
+A code coverage report can also be generated locally via the [Gradle Wrapper] by
+executing `gradlew -PenableJaCoCo clean jacocoRootReport`. The results will be available
+in `build/reports/jacoco/jacocoRootReport/html/index.html`.
 
 ## Gradle Build Scans
 
-JUnit 5 utilizes [Gradle's](https://gradle.com/) support for _Build Scans_. An example
-build scan for JUnit 5 can be viewed [here](https://scans.gradle.com/s/pgjgssca2kkli).
-Note, however, that the number of listed tests only reflects the Spock tests within the
-JUnit 5 test suite. To see a full representation of the number of tests executed per
-project, click on "See console output" on the build scan page.
+JUnit 5 utilizes [Gradle's](https://gradle.org/) support for _Build Scans_. An example
+build scan for JUnit 5 can be viewed [here](https://scans.gradle.com/s/bl3pw4mrbgsao).
 
 ## Building from Source
 
-You need [JDK-10] to build JUnit 5.
-All modules can be built with Gradle using the following command.
+You need [JDK 11] to build JUnit 5.
 
-```
-gradlew clean assemble
-```
+All modules can be _built_ with the [Gradle Wrapper] using the following command.
 
-All modules can be tested with Gradle using the following command.
+`gradlew clean assemble`
 
-```
-gradlew clean test
-```
+All modules can be _tested_ with the [Gradle Wrapper] using the following command.
 
-Since Gradle has excellent incremental build support, you can usually omit executing the `clean` task.
+`gradlew clean test`
+
+Since Gradle has excellent incremental build support, you can usually omit executing the
+`clean` task.
 
 ## Installing in Local Maven Repository
 
-All modules can be installed in a local Maven repository for consumption in other projects via the following command.
+All modules can be _installed_ with the [Gradle Wrapper] in a local Maven repository for
+consumption in other projects via the following command.
 
-```
-gradlew clean install
-```
+`gradlew clean publishToMavenLocal`
 
 ## Dependency Metadata
 
 The following sections list the dependency metadata for the JUnit Platform, JUnit
 Jupiter, and JUnit Vintage.
 
-See also <http://repo1.maven.org/maven2/org/junit/> for releases and <https://oss.sonatype.org/content/repositories/snapshots/org/junit/> for snapshots.
+See also <https://repo1.maven.org/maven2/org/junit/> for releases and <https://oss.sonatype.org/content/repositories/snapshots/org/junit/> for snapshots.
 
 ### JUnit Platform
 
 - **Group ID**: `org.junit.platform`
-- **Version**: `1.1.1` or `1.2.0-SNAPSHOT`
-- **Artifact IDs** and **Automatic-Module-Name**:
+- **Version**: `1.4.2`, `5.5.0-M1`, or `1.5.0-SNAPSHOT`
+- **Artifact IDs** and Java **module** name:
   - `junit-platform-commons` (`org.junit.platform.commons`)
   - `junit-platform-console` (`org.junit.platform.console`)
   - `junit-platform-console-standalone` (*N/A*)
   - `junit-platform-engine` (`org.junit.platform.engine`)
-  - `junit-platform-gradle-plugin` (`org.junit.platform.gradle.plugin`)
   - `junit-platform-launcher` (`org.junit.platform.launcher`)
+  - `junit-platform-reporting` (`org.junit.platform.reporting`)
   - `junit-platform-runner` (`org.junit.platform.runner`)
   - `junit-platform-suite-api` (`org.junit.platform.suite.api`)
-  - `junit-platform-surefire-provider` (`org.junit.platform.surefire.provider`)
+  - `junit-platform-testkit` (`org.junit.platform.testkit`)
 
 ### JUnit Jupiter
 
 - **Group ID**: `org.junit.jupiter`
-- **Version**: `5.1.1` or `5.2.0-SNAPSHOT`
-- **Artifact IDs** and **Automatic-Module-Name**:
+- **Version**: `5.4.2`, `5.5.0-M1`, or `5.5.0-SNAPSHOT`
+- **Artifact IDs** and Java **module** name:
+  - `junit-jupiter` (`org.junit.jupiter`)
   - `junit-jupiter-api` (`org.junit.jupiter.api`)
   - `junit-jupiter-engine` (`org.junit.jupiter.engine`)
   - `junit-jupiter-migrationsupport` (`org.junit.jupiter.migrationsupport`)
@@ -113,42 +110,25 @@ See also <http://repo1.maven.org/maven2/org/junit/> for releases and <https://os
 ### JUnit Vintage
 
 - **Group ID**: `org.junit.vintage`
-- **Version**: `5.1.1` or `5.2.0-SNAPSHOT`
-- **Artifact ID** and **Automatic-Module-Name**:
+- **Version**: `5.4.2`, `5.5.0-M1`, or `5.5.0-SNAPSHOT`
+- **Artifact ID** and Java **module** name:
   - `junit-vintage-engine` (`org.junit.vintage.engine`)
 
-## Java Module Names
+### Bill of Materials (BOM)
 
-All published JAR artifacts contain an [Automatic-Module-Name] manifest attribute
-whose value is used as the name of the automatic module defined by that JAR file
-when it is placed on the module path. The names are listed above in the
-Dependency Metadata section.
-
-This allows test module authors to require well-known JUnit module names as
-can be seen in the following example:
-
-```
-open module foo.bar {
-  requires org.junit.jupiter.api;
-  requires org.junit.platform.commons;
-  requires org.opentest4j;
-}
-```
-
-The `junit-platform-console-standalone` JAR does not provide an automatic module name
-as it is not intended to be used as a module.
+- **Group ID**: `org.junit`
+- **Artifact ID** `junit-bom`
+- **Version**: `5.4.2`, `5.5.0-M1`, or `5.5.0-SNAPSHOT`
 
 
-[Automatic-Module-Name]: http://mail.openjdk.java.net/pipermail/jpms-spec-experts/2017-April/000667.html
 [Codecov]: https://codecov.io/gh/junit-team/junit5
 [CONTRIBUTING.md]: https://github.com/junit-team/junit5/blob/master/CONTRIBUTING.md
 [Gitter]: https://gitter.im/junit-team/junit5
+[Gradle Wrapper]: https://docs.gradle.org/current/userguide/gradle_wrapper.html#sec:using_wrapper
 [JaCoCo]: http://www.eclemma.org/jacoco/
 [Javadoc]: https://junit.org/junit5/docs/current/api/
-[JDK-10]: http://jdk.java.net/10/
-[Jenkins CI server]: https://junit.ci.cloudbees.com/job/JUnit5/job/master/lastSuccessfulBuild/artifact/build/reports/jacoco/jacocoRootReport/html/index.html
-[OpenClover]: http://openclover.org
-[Prototype]: https://github.com/junit-team/junit5/wiki/Prototype
+[JDK 11]: https://jdk.java.net/11/
 [Release Notes]: https://junit.org/junit5/docs/current/release-notes/
 [StackOverflow]: https://stackoverflow.com/questions/tagged/junit5
 [User Guide]: https://junit.org/junit5/docs/current/user-guide/
+[Samples]: https://github.com/junit-team/junit5-samples

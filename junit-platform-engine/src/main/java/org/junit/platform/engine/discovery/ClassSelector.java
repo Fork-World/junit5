@@ -1,19 +1,21 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine.discovery;
 
 import static org.apiguardian.api.API.Status.STABLE;
 
+import java.util.Objects;
+
 import org.apiguardian.api.API;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.commons.util.ToStringBuilder;
 import org.junit.platform.engine.DiscoverySelector;
@@ -69,10 +71,36 @@ public class ClassSelector implements DiscoverySelector {
 	 */
 	public Class<?> getJavaClass() {
 		if (this.javaClass == null) {
-			this.javaClass = ReflectionUtils.loadClass(this.className).orElseThrow(
-				() -> new PreconditionViolationException("Could not load class with name: " + this.className));
+			this.javaClass = ReflectionUtils.tryToLoadClass(this.className).getOrThrow(
+				cause -> new PreconditionViolationException("Could not load class with name: " + this.className,
+					cause));
 		}
 		return this.javaClass;
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@API(status = STABLE, since = "1.3")
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ClassSelector that = (ClassSelector) o;
+		return Objects.equals(this.className, that.className);
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@API(status = STABLE, since = "1.3")
+	@Override
+	public int hashCode() {
+		return this.className.hashCode();
 	}
 
 	@Override

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.converter;
@@ -13,6 +13,7 @@ package org.junit.jupiter.params.converter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
+import java.lang.Thread.State;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URI;
@@ -38,6 +39,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 /**
+ * Unit tests for {@link DefaultArgumentConverter}.
+ *
  * @since 5.0
  */
 class DefaultArgumentConverterTests {
@@ -85,6 +88,29 @@ class DefaultArgumentConverterTests {
 		assertConverts("42.23", double.class, 42.23);
 	}
 
+	/**
+	 * @since 5.4
+	 */
+	@Test
+	@SuppressWarnings("OctalInteger") // We test parsing octal integers here as well as hex.
+	void convertsEncodedStringsToIntegralTypes() {
+		assertConverts("0x1f", byte.class, (byte) 0x1F);
+		assertConverts("-0x1F", byte.class, (byte) -0x1F);
+		assertConverts("010", byte.class, (byte) 010);
+
+		assertConverts("0x1f00", short.class, (short) 0x1F00);
+		assertConverts("-0x1F00", short.class, (short) -0x1F00);
+		assertConverts("01000", short.class, (short) 01000);
+
+		assertConverts("0x1f000000", int.class, 0x1F000000);
+		assertConverts("-0x1F000000", int.class, -0x1F000000);
+		assertConverts("010000000", int.class, 010000000);
+
+		assertConverts("0x1f000000000", long.class, 0x1F000000000L);
+		assertConverts("-0x1F000000000", long.class, -0x1F000000000L);
+		assertConverts("0100000000000", long.class, 0100000000000L);
+	}
+
 	@Test
 	void convertsStringsToEnumConstants() {
 		assertConverts("DAYS", TimeUnit.class, TimeUnit.DAYS);
@@ -110,6 +136,19 @@ class DefaultArgumentConverterTests {
 		assertConverts("path", Path.class, Paths.get("path"));
 		assertConverts("/path", Path.class, Paths.get("/path"));
 		assertConverts("/some/path", Path.class, Paths.get("/some/path"));
+	}
+
+	// --- java.lang -----------------------------------------------------------
+
+	@Test
+	void convertsStringToClass() {
+		assertConverts("java.lang.Integer", Class.class, Integer.class);
+		assertConverts("java.lang.Thread$State", Class.class, State.class);
+		assertConverts("byte", Class.class, byte.class);
+		assertConverts("char[]", Class.class, char[].class);
+		assertConverts("java.lang.Long[][]", Class.class, Long[][].class);
+		assertConverts("[[[I", Class.class, int[][][].class);
+		assertConverts("[[Ljava.lang.String;", Class.class, String[][].class);
 	}
 
 	// --- java.math -----------------------------------------------------------

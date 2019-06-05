@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter;
@@ -28,6 +28,16 @@ import org.junit.runner.RunWith;
  *
  * <pre class="code">
  * -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+ * </pre>
+ *
+ * <h3>Disable Nashorn Warnings</h3>
+ *
+ * <p>In able to disable warnings about the Nashorn JavaScript engine being
+ * removed in a future JDK release, you must set the following system property before running any tests &mdash; for
+ * example, in <em>Run Configurations</em> in Eclipse.
+ *
+ * <pre class="code">
+ * -Dnashorn.args=--no-deprecation-warning
  * </pre>
  *
  * @since 5.0

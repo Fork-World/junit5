@@ -1,15 +1,16 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api.extension;
 
+import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.STABLE;
 
 import java.lang.reflect.AnnotatedElement;
@@ -24,10 +25,9 @@ import java.util.Set;
 import java.util.function.Function;
 
 import org.apiguardian.api.API;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.support.ReflectionSupport;
-import org.junit.platform.commons.util.PreconditionViolationException;
 import org.junit.platform.commons.util.Preconditions;
 
 /**
@@ -148,7 +148,7 @@ public interface ExtensionContext {
 	 *
 	 * @return an {@code Optional} containing the test instance {@code Lifecycle};
 	 * never {@code null} but potentially empty
-	 * @see TestInstance {@code @TestInstance}
+	 * @see org.junit.jupiter.api.TestInstance {@code @TestInstance}
 	 * @since 5.1
 	 */
 	@API(status = STABLE, since = "5.1")
@@ -161,6 +161,7 @@ public interface ExtensionContext {
 	 * @return an {@code Optional} containing the test instance; never
 	 * {@code null} but potentially empty
 	 * @see #getRequiredTestInstance()
+	 * @see #getTestInstances()
 	 */
 	Optional<Object> getTestInstance();
 
@@ -174,10 +175,47 @@ public interface ExtensionContext {
 	 * @return the test instance; never {@code null}
 	 * @throws PreconditionViolationException if the test instance is not present
 	 * in this {@code ExtensionContext}
+	 *
+	 * @see #getRequiredTestInstances()
 	 */
 	default Object getRequiredTestInstance() {
 		return Preconditions.notNull(getTestInstance().orElse(null),
 			"Illegal state: required test instance is not present in the current ExtensionContext");
+	}
+
+	/**
+	 * Get the test instances associated with the current test or container,
+	 * if available.
+	 *
+	 * <p>While top-level tests only have a single test instance, nested tests
+	 * have one additional instance for each enclosing test class.
+	 *
+	 * @return an {@code Optional} containing the test instances; never
+	 * {@code null} but potentially empty
+	 * @see #getRequiredTestInstances()
+	 *
+	 * @since 5.4
+	 */
+	@API(status = EXPERIMENTAL, since = "5.4")
+	Optional<TestInstances> getTestInstances();
+
+	/**
+	 * Get the <em>required</em> test instances associated with the current test
+	 * or container.
+	 *
+	 * <p>Use this method as an alternative to {@link #getTestInstances()} for use
+	 * cases in which the test instances are required to be present.
+	 *
+	 * @return the test instances; never {@code null}
+	 * @throws PreconditionViolationException if the test instances are not present
+	 * in this {@code ExtensionContext}
+	 *
+	 * @since 5.4
+	 */
+	@API(status = EXPERIMENTAL, since = "5.4")
+	default TestInstances getRequiredTestInstances() {
+		return Preconditions.notNull(getTestInstances().orElse(null),
+			"Illegal state: required test instances are not present in the current ExtensionContext");
 	}
 
 	/**
@@ -256,23 +294,51 @@ public interface ExtensionContext {
 
 	/**
 	 * Publish a map of key-value pairs to be consumed by an
-	 * {@code org.junit.platform.engine.EngineExecutionListener}.
+	 * {@code org.junit.platform.engine.EngineExecutionListener} in order to
+	 * supply additional information to the reporting infrastructure.
 	 *
 	 * @param map the key-value pairs to be published; never {@code null};
 	 * keys and values within entries in the map also must not be
 	 * {@code null} or blank
+	 * @see #publishReportEntry(String, String)
+	 * @see #publishReportEntry(String)
+	 * @see org.junit.platform.engine.EngineExecutionListener#reportingEntryPublished
 	 */
 	void publishReportEntry(Map<String, String> map);
 
 	/**
 	 * Publish the specified key-value pair to be consumed by an
-	 * {@code org.junit.platform.engine.EngineExecutionListener}.
+	 * {@code org.junit.platform.engine.EngineExecutionListener} in order to
+	 * supply additional information to the reporting infrastructure.
 	 *
 	 * @param key the key of the published pair; never {@code null} or blank
 	 * @param value the value of the published pair; never {@code null} or blank
+	 * @see #publishReportEntry(Map)
+	 * @see #publishReportEntry(String)
+	 * @see org.junit.platform.engine.EngineExecutionListener#reportingEntryPublished
 	 */
 	default void publishReportEntry(String key, String value) {
 		this.publishReportEntry(Collections.singletonMap(key, value));
+	}
+
+	/**
+	 * Publish the specified value to be consumed by an
+	 * {@code org.junit.platform.engine.EngineExecutionListener} in order to
+	 * supply additional information to the reporting infrastructure.
+	 *
+	 * <p>This method delegates to {@link #publishReportEntry(String, String)},
+	 * supplying {@code "value"} as the key and the supplied {@code value}
+	 * argument as the value.
+	 *
+	 * @param value the value to be published; never {@code null} or blank
+	 * @see #publishReportEntry(Map)
+	 * @see #publishReportEntry(String, String)
+	 * @see org.junit.platform.engine.EngineExecutionListener#reportingEntryPublished
+	 * @since 5.3
+	 */
+	@API(status = STABLE, since = "5.3")
+	default void publishReportEntry(String value) {
+		this.publishReportEntry("value", value);
 	}
 
 	/**
@@ -381,7 +447,9 @@ public interface ExtensionContext {
 		 * @see #getOrComputeIfAbsent(Object, Function)
 		 * @see #getOrComputeIfAbsent(Object, Function, Class)
 		 * @see CloseableResource
+		 * @since 5.1
 		 */
+		@API(status = STABLE, since = "5.1")
 		default <V> V getOrComputeIfAbsent(Class<V> type) {
 			return getOrComputeIfAbsent(type, ReflectionSupport::newInstance, type);
 		}

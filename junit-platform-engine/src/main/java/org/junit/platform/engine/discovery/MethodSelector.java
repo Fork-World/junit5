@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine.discovery;
@@ -13,10 +13,11 @@ package org.junit.platform.engine.discovery;
 import static org.apiguardian.api.API.Status.STABLE;
 
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 import org.apiguardian.api.API;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.util.ClassUtils;
-import org.junit.platform.commons.util.PreconditionViolationException;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.commons.util.StringUtils;
 import org.junit.platform.commons.util.ToStringBuilder;
@@ -149,21 +150,12 @@ public class MethodSelector implements DiscoverySelector {
 		return this.javaMethod;
 	}
 
-	@Override
-	public String toString() {
-		// @formatter:off
-		return new ToStringBuilder(this)
-				.append("className", this.className)
-				.append("methodName", this.methodName)
-				.append("methodParameterTypes", this.methodParameterTypes)
-				.toString();
-		// @formatter:on
-	}
-
 	private void lazyLoadJavaClass() {
 		if (this.javaClass == null) {
-			this.javaClass = ReflectionUtils.loadClass(this.className).orElseThrow(
-				() -> new PreconditionViolationException("Could not load class with name: " + this.className));
+			// @formatter:off
+			this.javaClass = ReflectionUtils.tryToLoadClass(this.className).getOrThrow(
+				cause -> new PreconditionViolationException("Could not load class with name: " + this.className, cause));
+			// @formatter:on
 		}
 	}
 
@@ -185,6 +177,44 @@ public class MethodSelector implements DiscoverySelector {
 							this.javaClass.getName())));
 			}
 		}
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@API(status = STABLE, since = "1.3")
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		MethodSelector that = (MethodSelector) o;
+		return Objects.equals(this.className, that.className)//
+				&& Objects.equals(this.methodName, that.methodName)//
+				&& Objects.equals(this.methodParameterTypes, that.methodParameterTypes);
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@API(status = STABLE, since = "1.3")
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.className, this.methodName, this.methodParameterTypes);
+	}
+
+	@Override
+	public String toString() {
+		// @formatter:off
+		return new ToStringBuilder(this)
+				.append("className", this.className)
+				.append("methodName", this.methodName)
+				.append("methodParameterTypes", this.methodParameterTypes)
+				.toString();
+		// @formatter:on
 	}
 
 }

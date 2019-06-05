@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -18,14 +18,18 @@ import org.opentest4j.ValueWrapper;
 
 class AssertionTestUtils {
 
-	///CLOVER:OFF
 	private AssertionTestUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	static void expectAssertionFailedError() {
 		throw new AssertionError("Should have thrown an " + AssertionFailedError.class.getName());
+	}
+
+	static void assertEmptyMessage(Throwable ex) throws AssertionError {
+		if (!ex.getMessage().isEmpty()) {
+			throw new AssertionError("Exception message should be empty, but was [" + ex.getMessage() + "].");
+		}
 	}
 
 	static void assertMessageEquals(Throwable ex, String msg) throws AssertionError {
@@ -50,6 +54,13 @@ class AssertionTestUtils {
 
 	static void assertMessageContains(Throwable ex, String msg) throws AssertionError {
 		if (!ex.getMessage().contains(msg)) {
+			throw new AssertionError(
+				"Exception message should contain [" + msg + "], but was [" + ex.getMessage() + "].");
+		}
+	}
+
+	static void assertMessageDoesNotContain(Throwable ex, String msg) throws AssertionError {
+		if (ex.getMessage().contains(msg)) {
 			throw new AssertionError(
 				"Exception message should contain [" + msg + "], but was [" + ex.getMessage() + "].");
 		}

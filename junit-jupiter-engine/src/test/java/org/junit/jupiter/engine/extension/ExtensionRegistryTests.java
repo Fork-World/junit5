@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.extension;
@@ -22,17 +22,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.Extension;
+import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
-import org.junit.jupiter.engine.Constants;
-import org.junit.platform.engine.ConfigurationParameters;
+import org.junit.jupiter.engine.config.JupiterConfiguration;
 
 /**
  * Tests for the {@link ExtensionRegistry}.
@@ -41,32 +41,33 @@ import org.junit.platform.engine.ConfigurationParameters;
  */
 class ExtensionRegistryTests {
 
-	private final ConfigurationParameters configParams = mock(ConfigurationParameters.class);
+	private static final int NUM_DEFAULT_EXTENSIONS = 7;
 
-	private ExtensionRegistry registry = createRegistryWithDefaultExtensions(configParams);
+	private final JupiterConfiguration configuration = mock(JupiterConfiguration.class);
+
+	private ExtensionRegistry registry = createRegistryWithDefaultExtensions(configuration);
 
 	@Test
 	void newRegistryWithoutParentHasDefaultExtensions() {
 		List<Extension> extensions = registry.getExtensions(Extension.class);
 
-		assertEquals(5, extensions.size());
+		assertEquals(NUM_DEFAULT_EXTENSIONS, extensions.size());
 		assertDefaultGlobalExtensionsAreRegistered();
 	}
 
 	@Test
 	void newRegistryWithoutParentHasDefaultExtensionsPlusAutodetectedExtensionsLoadedViaServiceLoader() {
 
-		when(configParams.getBoolean(Constants.EXTENSIONS_AUTODETECTION_ENABLED_PROPERTY_NAME)).thenReturn(
-			Optional.of(Boolean.TRUE));
-		registry = createRegistryWithDefaultExtensions(configParams);
+		when(configuration.isExtensionAutoDetectionEnabled()).thenReturn(true);
+		registry = createRegistryWithDefaultExtensions(configuration);
 
 		List<Extension> extensions = registry.getExtensions(Extension.class);
 
-		assertEquals(6, extensions.size());
-		assertDefaultGlobalExtensionsAreRegistered();
+		assertEquals(NUM_DEFAULT_EXTENSIONS + 1, extensions.size());
+		assertDefaultGlobalExtensionsAreRegistered(3);
 
 		assertExtensionRegistered(registry, ServiceLoaderExtension.class);
-		assertEquals(1, countExtensions(registry, BeforeAllCallback.class));
+		assertEquals(3, countExtensions(registry, BeforeAllCallback.class));
 	}
 
 	@Test
@@ -155,15 +156,24 @@ class ExtensionRegistryTests {
 	}
 
 	private void assertDefaultGlobalExtensionsAreRegistered() {
+		assertDefaultGlobalExtensionsAreRegistered(2);
+	}
+
+	private void assertDefaultGlobalExtensionsAreRegistered(long bacCount) {
 		assertExtensionRegistered(registry, DisabledCondition.class);
 		assertExtensionRegistered(registry, ScriptExecutionCondition.class);
+		assertExtensionRegistered(registry, TempDirectory.class);
+		assertExtensionRegistered(registry, TimeoutExtension.class);
 		assertExtensionRegistered(registry, RepeatedTestExtension.class);
 		assertExtensionRegistered(registry, TestInfoParameterResolver.class);
 		assertExtensionRegistered(registry, TestReporterParameterResolver.class);
 
-		assertEquals(2, countExtensions(registry, ParameterResolver.class));
+		assertEquals(bacCount, countExtensions(registry, BeforeAllCallback.class));
+		assertEquals(2, countExtensions(registry, BeforeEachCallback.class));
+		assertEquals(3, countExtensions(registry, ParameterResolver.class));
 		assertEquals(2, countExtensions(registry, ExecutionCondition.class));
 		assertEquals(1, countExtensions(registry, TestTemplateInvocationContextProvider.class));
+		assertEquals(1, countExtensions(registry, InvocationInterceptor.class));
 	}
 
 	// -------------------------------------------------------------------------

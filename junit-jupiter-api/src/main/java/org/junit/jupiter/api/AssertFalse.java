@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -27,11 +27,9 @@ class AssertFalse {
 
 	private static final String EXPECTED_FALSE = "expected: <false> but was: <true>";
 
-	///CLOVER:OFF
 	private AssertFalse() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	static void assertFalse(boolean condition) {
 		assertFalse(condition, (String) null);
@@ -39,13 +37,13 @@ class AssertFalse {
 
 	static void assertFalse(boolean condition, String message) {
 		if (condition) {
-			fail(buildPrefix(message) + EXPECTED_FALSE);
+			fail(buildPrefix(message) + EXPECTED_FALSE, false, true);
 		}
 	}
 
 	static void assertFalse(boolean condition, Supplier<String> messageSupplier) {
 		if (condition) {
-			fail(buildPrefix(nullSafeGet(messageSupplier)) + EXPECTED_FALSE);
+			fail(buildPrefix(nullSafeGet(messageSupplier)) + EXPECTED_FALSE, false, true);
 		}
 	}
 

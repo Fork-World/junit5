@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.extensions;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.extension.ParameterResolver;
 public class Heavyweight implements ParameterResolver, BeforeEachCallback {
 
 	@Override
-	public void beforeEach(ExtensionContext context) throws Exception {
+	public void beforeEach(ExtensionContext context) {
 		context.getStore(ExtensionContext.Namespace.GLOBAL).put("once", new CloseableOnlyOnceResource());
 	}
 
@@ -45,6 +45,8 @@ public class Heavyweight implements ParameterResolver, BeforeEachCallback {
 	}
 
 	interface Resource {
+		String ID = "org.junit.jupiter.extensions.Heavyweight.Resource";
+
 		int usages();
 	}
 

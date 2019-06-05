@@ -1,15 +1,16 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api.extension;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -40,6 +41,7 @@ public class KitchenSinkExtension implements
 	AfterAllCallback,
 
 	// Dependency Injection
+	TestInstanceFactory,
 	TestInstancePostProcessor,
 	ParameterResolver,
 
@@ -47,7 +49,11 @@ public class KitchenSinkExtension implements
 	ExecutionCondition,
 
 	// @TestTemplate
-	TestTemplateInvocationContextProvider
+	TestTemplateInvocationContextProvider,
+
+	// Miscellaneous
+	TestWatcher,
+	InvocationInterceptor
 
 // @formatter:on
 {
@@ -55,50 +61,51 @@ public class KitchenSinkExtension implements
 	// --- Lifecycle Callbacks -------------------------------------------------
 
 	@Override
-	public void beforeAll(ExtensionContext context) throws Exception {
+	public void beforeAll(ExtensionContext context) {
 	}
 
 	@Override
-	public void beforeEach(ExtensionContext context) throws Exception {
+	public void beforeEach(ExtensionContext context) {
 	}
 
 	@Override
-	public void beforeTestExecution(ExtensionContext context) throws Exception {
+	public void beforeTestExecution(ExtensionContext context) {
 	}
 
 	@Override
-	public void handleTestExecutionException(ExtensionContext context, Throwable throwable) throws Throwable {
+	public void handleTestExecutionException(ExtensionContext context, Throwable throwable) {
 	}
 
 	@Override
-	public void afterTestExecution(ExtensionContext context) throws Exception {
+	public void afterTestExecution(ExtensionContext context) {
 	}
 
 	@Override
-	public void afterEach(ExtensionContext context) throws Exception {
+	public void afterEach(ExtensionContext context) {
 	}
 
 	@Override
-	public void afterAll(ExtensionContext context) throws Exception {
+	public void afterAll(ExtensionContext context) {
 	}
 
 	// --- Dependency Injection ------------------------------------------------
 
 	@Override
-	public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
+	public Object createTestInstance(TestInstanceFactoryContext factoryContext, ExtensionContext extensionContext) {
+		return null;
 	}
 
 	@Override
-	public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext)
-			throws ParameterResolutionException {
+	public void postProcessTestInstance(Object testInstance, ExtensionContext context) {
+	}
 
+	@Override
+	public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
 		return false;
 	}
 
 	@Override
-	public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext)
-			throws ParameterResolutionException {
-
+	public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
 		return null;
 	}
 
@@ -118,8 +125,25 @@ public class KitchenSinkExtension implements
 
 	@Override
 	public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
-
 		return null;
+	}
+
+	// --- TestWatcher ---------------------------------------------------------
+
+	@Override
+	public void testDisabled(ExtensionContext context, Optional<String> reason) {
+	}
+
+	@Override
+	public void testSuccessful(ExtensionContext context) {
+	}
+
+	@Override
+	public void testAborted(ExtensionContext context, Throwable cause) {
+	}
+
+	@Override
+	public void testFailed(ExtensionContext context, Throwable cause) {
 	}
 
 }

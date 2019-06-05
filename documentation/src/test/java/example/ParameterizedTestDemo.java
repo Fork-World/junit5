@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package example;
@@ -15,9 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.MATCH_ALL;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -26,9 +31,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import example.domain.Person;
+import example.domain.Person.Gender;
+import example.util.StringUtils;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestReporter;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -45,27 +55,20 @@ import org.junit.jupiter.params.provider.ArgumentsProvider;
 import org.junit.jupiter.params.provider.ArgumentsSource;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ParameterizedTestDemo {
-
-	private static boolean isPalindrome(String candidate) {
-		int length = candidate.length();
-		for (int i = 0; i < length / 2; i++) {
-			if (candidate.charAt(i) != candidate.charAt(length - (i + 1))) {
-				return false;
-			}
-		}
-		return true;
-	}
 
 	// tag::first_example[]
 	@ParameterizedTest
 	@ValueSource(strings = { "racecar", "radar", "able was I ere I saw elba" })
 	void palindromes(String candidate) {
-		assertTrue(isPalindrome(candidate));
+		assertTrue(StringUtils.isPalindrome(candidate));
 	}
 	// end::first_example[]
 
@@ -76,6 +79,33 @@ class ParameterizedTestDemo {
 		assertTrue(argument > 0 && argument < 4);
 	}
 	// end::ValueSource_example[]
+
+	@Nested
+	class NullAndEmptySource_1 {
+
+		// tag::NullAndEmptySource_example1[]
+		@ParameterizedTest
+		@NullSource
+		@EmptySource
+		@ValueSource(strings = { " ", "   ", "\t", "\n" })
+		void nullEmptyAndBlankStrings(String text) {
+			assertTrue(text == null || text.trim().isEmpty());
+		}
+		// end::NullAndEmptySource_example1[]
+	}
+
+	@Nested
+	class NullAndEmptySource_2 {
+
+		// tag::NullAndEmptySource_example2[]
+		@ParameterizedTest
+		@NullAndEmptySource
+		@ValueSource(strings = { " ", "   ", "\t", "\n" })
+		void nullEmptyAndBlankStrings(String text) {
+			assertTrue(text == null || text.trim().isEmpty());
+		}
+		// end::NullAndEmptySource_example2[]
+	}
 
 	// tag::EnumSource_example[]
 	@ParameterizedTest
@@ -115,24 +145,24 @@ class ParameterizedTestDemo {
 	// tag::simple_MethodSource_example[]
 	@ParameterizedTest
 	@MethodSource("stringProvider")
-	void testWithSimpleMethodSource(String argument) {
+	void testWithExplicitLocalMethodSource(String argument) {
 		assertNotNull(argument);
 	}
 
 	static Stream<String> stringProvider() {
-		return Stream.of("foo", "bar");
+		return Stream.of("apple", "banana");
 	}
 	// end::simple_MethodSource_example[]
 
 	// tag::simple_MethodSource_without_value_example[]
 	@ParameterizedTest
 	@MethodSource
-	void testWithSimpleMethodSourceHavingNoValue(String argument) {
+	void testWithDefaultLocalMethodSource(String argument) {
 		assertNotNull(argument);
 	}
 
-	static Stream<String> testWithSimpleMethodSourceHavingNoValue() {
-		return Stream.of("foo", "bar");
+	static Stream<String> testWithDefaultLocalMethodSource() {
+		return Stream.of("apple", "banana");
 	}
 	// end::simple_MethodSource_without_value_example[]
 
@@ -153,35 +183,41 @@ class ParameterizedTestDemo {
 	@ParameterizedTest
 	@MethodSource("stringIntAndListProvider")
 	void testWithMultiArgMethodSource(String str, int num, List<String> list) {
-		assertEquals(3, str.length());
+		assertEquals(5, str.length());
 		assertTrue(num >=1 && num <=2);
 		assertEquals(2, list.size());
 	}
 
 	static Stream<Arguments> stringIntAndListProvider() {
 		return Stream.of(
-			Arguments.of("foo", 1, Arrays.asList("a", "b")),
-			Arguments.of("bar", 2, Arrays.asList("x", "y"))
+			arguments("apple", 1, Arrays.asList("a", "b")),
+			arguments("lemon", 2, Arrays.asList("x", "y"))
 		);
 	}
 	// end::multi_arg_MethodSource_example[]
 	// @formatter:on
 
+	// @formatter:off
 	// tag::CsvSource_example[]
 	@ParameterizedTest
-	@CsvSource({ "foo, 1", "bar, 2", "'baz, qux', 3" })
-	void testWithCsvSource(String first, int second) {
-		assertNotNull(first);
-		assertNotEquals(0, second);
+	@CsvSource({
+		"apple,         1",
+		"banana,        2",
+		"'lemon, lime', 0xF1"
+	})
+	void testWithCsvSource(String fruit, int rank) {
+		assertNotNull(fruit);
+		assertNotEquals(0, rank);
 	}
 	// end::CsvSource_example[]
+	// @formatter:on
 
 	// tag::CsvFileSource_example[]
 	@ParameterizedTest
 	@CsvFileSource(resources = "/two-column.csv", numLinesToSkip = 1)
-	void testWithCsvFileSource(String first, int second) {
-		assertNotNull(first);
-		assertNotEquals(0, second);
+	void testWithCsvFileSource(String country, int reference) {
+		assertNotNull(country);
+		assertNotEquals(0, reference);
 	}
 	// end::CsvFileSource_example[]
 
@@ -192,14 +228,17 @@ class ParameterizedTestDemo {
 		assertNotNull(argument);
 	}
 
-	static class MyArgumentsProvider implements ArgumentsProvider {
+	// end::ArgumentsSource_example[]
+	static
+	// tag::ArgumentsProvider_example[]
+	public class MyArgumentsProvider implements ArgumentsProvider {
 
 		@Override
 		public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
-			return Stream.of("foo", "bar").map(Arguments::of);
+			return Stream.of("apple", "banana").map(Arguments::of);
 		}
 	}
-	// end::ArgumentsSource_example[]
+	// end::ArgumentsProvider_example[]
 
 	// tag::ParameterResolver_example[]
 	@BeforeEach
@@ -208,7 +247,7 @@ class ParameterizedTestDemo {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = "foo")
+	@ValueSource(strings = "apple")
 	void testWithRegularParameterResolver(String argument, TestReporter testReporter) {
 		testReporter.publishEntry("argument", argument);
 	}
@@ -234,7 +273,10 @@ class ParameterizedTestDemo {
 		assertEquals("42 Cats", book.getTitle());
 	}
 
-	static class Book {
+	// end::implicit_fallback_conversion_example[]
+	static
+	// tag::implicit_fallback_conversion_example_Book[]
+	public class Book {
 
 		private final String title;
 
@@ -250,7 +292,7 @@ class ParameterizedTestDemo {
 			return this.title;
 		}
 	}
-	// end::implicit_fallback_conversion_example[]
+	// end::implicit_fallback_conversion_example_Book[]
 
 	// @formatter:off
 	// tag::explicit_conversion_example[]
@@ -262,7 +304,10 @@ class ParameterizedTestDemo {
 		assertNotNull(TimeUnit.valueOf(argument));
 	}
 
-	static class ToStringArgumentConverter extends SimpleArgumentConverter {
+	// end::explicit_conversion_example[]
+	static
+	// tag::explicit_conversion_example_ToStringArgumentConverter[]
+	public class ToStringArgumentConverter extends SimpleArgumentConverter {
 
 		@Override
 		protected Object convert(Object source, Class<?> targetType) {
@@ -270,7 +315,7 @@ class ParameterizedTestDemo {
 			return String.valueOf(source);
 		}
 	}
-	// end::explicit_conversion_example[]
+	// end::explicit_conversion_example_ToStringArgumentConverter[]
 
 	// tag::explicit_java_time_converter[]
 	@ParameterizedTest
@@ -283,39 +328,83 @@ class ParameterizedTestDemo {
 	// end::explicit_java_time_converter[]
 	// @formatter:on
 
-	// tag::Accessor_example[]
-	@ParameterizedTest
-	@CsvSource({ "foo, 1, bar, 2", "baz, 3, qux, 4" })
-	void argumentsAccessorTest(ArgumentsAccessor accessor) {
-		assertNotEquals(accessor.get(0), accessor.get(2));
-		assertTrue(accessor.getInteger(3) > accessor.getInteger(1));
-	}
-	// end::Accessor_example[]
+	// @formatter:off
+    // tag::ArgumentsAccessor_example[]
+    @ParameterizedTest
+    @CsvSource({
+        "Jane, Doe, F, 1990-05-20",
+        "John, Doe, M, 1990-10-22"
+    })
+    void testWithArgumentsAccessor(ArgumentsAccessor arguments) {
+        Person person = new Person(arguments.getString(0),
+                                   arguments.getString(1),
+                                   arguments.get(2, Gender.class),
+                                   arguments.get(3, LocalDate.class));
+
+        if (person.getFirstName().equals("Jane")) {
+            assertEquals(Gender.F, person.getGender());
+        }
+        else {
+            assertEquals(Gender.M, person.getGender());
+        }
+        assertEquals("Doe", person.getLastName());
+        assertEquals(1990, person.getDateOfBirth().getYear());
+    }
+    // end::ArgumentsAccessor_example[]
+	// @formatter:on
 
 	// @formatter:off
-	// tag::Aggregator_example[]
-	@ParameterizedTest
-	@CsvSource({ "3, 22, 16, 39", "45, 15, 30" })
-	void aggregationTest(@AggregateWith(SummaryAggregator.class) int sum) {
-		assertTrue(sum <= 100);
-	}
+    // tag::ArgumentsAggregator_example[]
+    @ParameterizedTest
+    @CsvSource({
+        "Jane, Doe, F, 1990-05-20",
+        "John, Doe, M, 1990-10-22"
+    })
+    void testWithArgumentsAggregator(@AggregateWith(PersonAggregator.class) Person person) {
+        // perform assertions against person
+    }
 
-	static class SummaryAggregator implements ArgumentsAggregator {
-		@Override
-		public Object aggregateArguments(ArgumentsAccessor argumentsAccessor, ParameterContext parameterContext) {
-			return IntStream.range(0, argumentsAccessor.size())
-					.map(i -> argumentsAccessor.getInteger(i))
-					.sum();
-		}
-	}
-	// end::Aggregator_example[]
+    // end::ArgumentsAggregator_example[]
+    static
+    // tag::ArgumentsAggregator_example_PersonAggregator[]
+    public class PersonAggregator implements ArgumentsAggregator {
+        @Override
+        public Person aggregateArguments(ArgumentsAccessor arguments, ParameterContext context) {
+            return new Person(arguments.getString(0),
+                              arguments.getString(1),
+                              arguments.get(2, Gender.class),
+                              arguments.get(3, LocalDate.class));
+        }
+    }
+    // end::ArgumentsAggregator_example_PersonAggregator[]
+	// @formatter:on
+
+	// @formatter:off
+    // tag::ArgumentsAggregator_with_custom_annotation_example[]
+    @ParameterizedTest
+    @CsvSource({
+        "Jane, Doe, F, 1990-05-20",
+        "John, Doe, M, 1990-10-22"
+    })
+    void testWithCustomAggregatorAnnotation(@CsvToPerson Person person) {
+        // perform assertions against person
+    }
+    // end::ArgumentsAggregator_with_custom_annotation_example[]
+
+    // tag::ArgumentsAggregator_with_custom_annotation_example_CsvToPerson[]
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.PARAMETER)
+    @AggregateWith(PersonAggregator.class)
+    public @interface CsvToPerson {
+    }
+    // end::ArgumentsAggregator_with_custom_annotation_example_CsvToPerson[]
 	// @formatter:on
 
 	// tag::custom_display_names[]
 	@DisplayName("Display name of container")
-	@ParameterizedTest(name = "{index} ==> first=''{0}'', second={1}")
-	@CsvSource({ "foo, 1", "bar, 2", "'baz, qux', 3" })
-	void testWithCustomDisplayNames(String first, int second) {
+	@ParameterizedTest(name = "{index} ==> fruit=''{0}'', rank={1}")
+	@CsvSource({ "apple, 1", "banana, 2", "'lemon, lime', 3" })
+	void testWithCustomDisplayNames(String fruit, int rank) {
 	}
 	// end::custom_display_names[]
 }

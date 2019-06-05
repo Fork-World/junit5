@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -15,6 +15,7 @@ import static java.util.stream.Collectors.joining;
 import java.util.Deque;
 import java.util.function.Supplier;
 
+import org.junit.platform.commons.util.BlacklistedExceptions;
 import org.junit.platform.commons.util.StringUtils;
 import org.opentest4j.AssertionFailedError;
 
@@ -26,11 +27,13 @@ import org.opentest4j.AssertionFailedError;
  */
 class AssertionUtils {
 
-	///CLOVER:OFF
 	private AssertionUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
+
+	static void fail() {
+		throw new AssertionFailedError();
+	}
 
 	static void fail(String message) {
 		throw new AssertionFailedError(message);
@@ -50,6 +53,20 @@ class AssertionUtils {
 
 	static void fail(String message, Object expected, Object actual) {
 		throw new AssertionFailedError(message, expected, actual);
+	}
+
+	/**
+	 * Typically used for {@code assertEquals()}.
+	 */
+	static void failNotEqual(Object expected, Object actual, String message) {
+		fail(format(expected, actual, message), expected, actual);
+	}
+
+	/**
+	 * Typically used for {@code assertEquals()}.
+	 */
+	static void failNotEqual(Object expected, Object actual, Supplier<String> messageSupplier) {
+		fail(format(expected, actual, nullSafeGet(messageSupplier)), expected, actual);
 	}
 
 	static String nullSafeGet(Supplier<String> messageSupplier) {
@@ -86,6 +103,7 @@ class AssertionUtils {
 			return (canonicalName != null ? canonicalName : clazz.getName());
 		}
 		catch (Throwable t) {
+			BlacklistedExceptions.rethrowIfBlacklisted(t);
 			return clazz.getName();
 		}
 	}
@@ -140,13 +158,13 @@ class AssertionUtils {
 	}
 
 	static void assertValidDelta(float delta) {
-		if (Float.isNaN(delta) || delta <= 0.0) {
+		if (Float.isNaN(delta) || delta < 0.0) {
 			failIllegalDelta(String.valueOf(delta));
 		}
 	}
 
 	static void assertValidDelta(double delta) {
-		if (Double.isNaN(delta) || delta <= 0.0) {
+		if (Double.isNaN(delta) || delta < 0.0) {
 			failIllegalDelta(String.valueOf(delta));
 		}
 	}

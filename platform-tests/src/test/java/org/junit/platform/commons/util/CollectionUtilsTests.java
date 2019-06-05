@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.platform.commons.PreconditionViolationException;
 
 /**
  * Unit tests for {@link CollectionUtils}.
@@ -105,8 +106,8 @@ class CollectionUtilsTests {
 		assertThat(result).isSameAs(input);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
+	@SuppressWarnings("unchecked")
 	void toStreamWithDoubleStream() {
 		DoubleStream input = DoubleStream.of(42.23);
 
@@ -115,8 +116,8 @@ class CollectionUtilsTests {
 		assertThat(result).containsExactly(42.23);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
+	@SuppressWarnings("unchecked")
 	void toStreamWithIntStream() {
 		IntStream input = IntStream.of(23, 42);
 
@@ -125,8 +126,8 @@ class CollectionUtilsTests {
 		assertThat(result).containsExactly(23, 42);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
+	@SuppressWarnings("unchecked")
 	void toStreamWithLongStream() {
 		LongStream input = LongStream.of(23L, 42L);
 
@@ -135,11 +136,11 @@ class CollectionUtilsTests {
 		assertThat(result).containsExactly(23L, 42L);
 	}
 
-	@SuppressWarnings({ "unchecked", "serial" })
 	@Test
+	@SuppressWarnings({ "unchecked", "serial" })
 	void toStreamWithCollection() {
 		AtomicBoolean collectionStreamClosed = new AtomicBoolean(false);
-		Collection<String> input = new ArrayList<String>() {
+		Collection<String> input = new ArrayList<>() {
 
 			{
 				add("foo");
@@ -160,11 +161,11 @@ class CollectionUtilsTests {
 		assertThat(collectionStreamClosed.get()).describedAs("collectionStreamClosed").isTrue();
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
+	@SuppressWarnings("unchecked")
 	void toStreamWithIterable() {
 
-		Iterable<String> input = new Iterable<String>() {
+		Iterable<String> input = new Iterable<>() {
 
 			@Override
 			public Iterator<String> iterator() {
@@ -177,8 +178,8 @@ class CollectionUtilsTests {
 		assertThat(result).containsExactly("foo", "bar");
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
+	@SuppressWarnings("unchecked")
 	void toStreamWithIterator() {
 		Iterator<String> input = asList("foo", "bar").iterator();
 
@@ -187,8 +188,8 @@ class CollectionUtilsTests {
 		assertThat(result).containsExactly("foo", "bar");
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
+	@SuppressWarnings("unchecked")
 	void toStreamWithArray() {
 		Stream<String> result = (Stream<String>) CollectionUtils.toStream(new String[] { "foo", "bar" });
 
@@ -227,4 +228,5 @@ class CollectionUtilsTests {
 			assertEquals(Array.get(primitiveArray, i), result[i]);
 		}
 	}
+
 }

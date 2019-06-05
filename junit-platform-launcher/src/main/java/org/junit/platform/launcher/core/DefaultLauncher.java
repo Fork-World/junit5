@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.launcher.core;
@@ -13,6 +13,7 @@ package org.junit.platform.launcher.core;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.logging.Logger;
@@ -33,7 +34,8 @@ import org.junit.platform.launcher.TestPlan;
 /**
  * Default implementation of the {@link Launcher} API.
  *
- * <p>External clients can obtain an instance by invoking {@link LauncherFactory#create()}.
+ * <p>External clients can obtain an instance by invoking
+ * {@link LauncherFactory#create()}.
  *
  * @since 1.0
  * @see Launcher
@@ -44,6 +46,7 @@ class DefaultLauncher implements Launcher {
 	private static final Logger logger = LoggerFactory.getLogger(DefaultLauncher.class);
 
 	private final TestExecutionListenerRegistry listenerRegistry = new TestExecutionListenerRegistry();
+	private final EngineDiscoveryResultValidator discoveryResultValidator = new EngineDiscoveryResultValidator();
 	private final Iterable<TestEngine> testEngines;
 
 	/**
@@ -55,18 +58,53 @@ class DefaultLauncher implements Launcher {
 		Preconditions.condition(testEngines != null && testEngines.iterator().hasNext(),
 			() -> "Cannot create Launcher without at least one TestEngine; "
 					+ "consider adding an engine implementation JAR to the classpath");
-		this.testEngines = validateUniqueIds(testEngines);
+		this.testEngines = validateEngineIds(testEngines);
 	}
 
-	private static Iterable<TestEngine> validateUniqueIds(Iterable<TestEngine> testEngines) {
+	private static Iterable<TestEngine> validateEngineIds(Iterable<TestEngine> testEngines) {
 		Set<String> ids = new HashSet<>();
 		for (TestEngine testEngine : testEngines) {
+			// check usage of reserved id prefix
+			if (!validateReservedIds(testEngine)) {
+				logger.warn(() -> String.format(
+					"Third-party TestEngine implementations are forbidden to use the reserved 'junit-' prefix for their ID: '%s'",
+					testEngine.getId()));
+			}
+
+			// check uniqueness
 			if (!ids.add(testEngine.getId())) {
 				throw new JUnitException(String.format(
 					"Cannot create Launcher for multiple engines with the same ID '%s'.", testEngine.getId()));
 			}
 		}
 		return testEngines;
+	}
+
+	// https://github.com/junit-team/junit5/issues/1557
+	private static boolean validateReservedIds(TestEngine testEngine) {
+		String engineId = testEngine.getId();
+		if (!engineId.startsWith("junit-")) {
+			return true;
+		}
+		if (engineId.equals("junit-jupiter")) {
+			validateWellKnownClassName(testEngine, "org.junit.jupiter.engine.JupiterTestEngine");
+			return true;
+		}
+		if (engineId.equals("junit-vintage")) {
+			validateWellKnownClassName(testEngine, "org.junit.vintage.engine.VintageTestEngine");
+			return true;
+		}
+		return false;
+	}
+
+	private static void validateWellKnownClassName(TestEngine testEngine, String expectedClassName) {
+		String actualClassName = testEngine.getClass().getName();
+		if (actualClassName.equals(expectedClassName)) {
+			return;
+		}
+		throw new JUnitException(
+			String.format("Third-party TestEngine '%s' is forbidden to use the reserved '%s' TestEngine ID.",
+				actualClassName, testEngine.getId()));
 	}
 
 	@Override
@@ -79,7 +117,7 @@ class DefaultLauncher implements Launcher {
 	@Override
 	public TestPlan discover(LauncherDiscoveryRequest discoveryRequest) {
 		Preconditions.notNull(discoveryRequest, "LauncherDiscoveryRequest must not be null");
-		return TestPlan.from(discoverRoot(discoveryRequest, "discovery").getEngineDescriptors());
+		return InternalTestPlan.from(discoverRoot(discoveryRequest, "discovery"));
 	}
 
 	@Override
@@ -87,7 +125,16 @@ class DefaultLauncher implements Launcher {
 		Preconditions.notNull(discoveryRequest, "LauncherDiscoveryRequest must not be null");
 		Preconditions.notNull(listeners, "TestExecutionListener array must not be null");
 		Preconditions.containsNoNullElements(listeners, "individual listeners must not be null");
-		execute(discoverRoot(discoveryRequest, "execution"), discoveryRequest.getConfigurationParameters(), listeners);
+		execute(InternalTestPlan.from(discoverRoot(discoveryRequest, "execution")), listeners);
+	}
+
+	@Override
+	public void execute(TestPlan testPlan, TestExecutionListener... listeners) {
+		Preconditions.notNull(testPlan, "TestPlan must not be null");
+		Preconditions.condition(testPlan instanceof InternalTestPlan, "TestPlan was not returned by this Launcher");
+		Preconditions.notNull(listeners, "TestExecutionListener array must not be null");
+		Preconditions.containsNoNullElements(listeners, "individual listeners must not be null");
+		execute((InternalTestPlan) testPlan, listeners);
 	}
 
 	TestExecutionListenerRegistry getTestExecutionListenerRegistry() {
@@ -95,7 +142,7 @@ class DefaultLauncher implements Launcher {
 	}
 
 	private Root discoverRoot(LauncherDiscoveryRequest discoveryRequest, String phase) {
-		Root root = new Root();
+		Root root = new Root(discoveryRequest.getConfigurationParameters());
 
 		for (TestEngine testEngine : this.testEngines) {
 			// @formatter:off
@@ -128,10 +175,7 @@ class DefaultLauncher implements Launcher {
 		UniqueId uniqueEngineId = UniqueId.forEngine(testEngine.getId());
 		try {
 			TestDescriptor engineRoot = testEngine.discover(discoveryRequest, uniqueEngineId);
-			Preconditions.notNull(engineRoot,
-				() -> String.format(
-					"The discover() method for TestEngine with ID '%s' must return a non-null root TestDescriptor.",
-					testEngine.getId()));
+			discoveryResultValidator.validate(testEngine, engineRoot);
 			return Optional.of(engineRoot);
 		}
 		catch (Throwable throwable) {
@@ -140,20 +184,35 @@ class DefaultLauncher implements Launcher {
 		}
 	}
 
-	private void execute(Root root, ConfigurationParameters configurationParameters,
-			TestExecutionListener... listeners) {
-
+	private void execute(InternalTestPlan internalTestPlan, TestExecutionListener[] listeners) {
+		Root root = internalTestPlan.getRoot();
+		ConfigurationParameters configurationParameters = root.getConfigurationParameters();
 		TestExecutionListenerRegistry listenerRegistry = buildListenerRegistryForExecution(listeners);
-		TestPlan testPlan = TestPlan.from(root.getEngineDescriptors());
+		withInterceptedStreams(configurationParameters, listenerRegistry, testExecutionListener -> {
+			testExecutionListener.testPlanExecutionStarted(internalTestPlan);
+			ExecutionListenerAdapter engineExecutionListener = new ExecutionListenerAdapter(internalTestPlan,
+				testExecutionListener);
+			for (TestEngine testEngine : root.getTestEngines()) {
+				TestDescriptor testDescriptor = root.getTestDescriptorFor(testEngine);
+				execute(testEngine,
+					new ExecutionRequest(testDescriptor, engineExecutionListener, configurationParameters));
+			}
+			testExecutionListener.testPlanExecutionFinished(internalTestPlan);
+		});
+	}
+
+	private void withInterceptedStreams(ConfigurationParameters configurationParameters,
+			TestExecutionListenerRegistry listenerRegistry, Consumer<TestExecutionListener> action) {
 		TestExecutionListener testExecutionListener = listenerRegistry.getCompositeTestExecutionListener();
-		testExecutionListener.testPlanExecutionStarted(testPlan);
-		ExecutionListenerAdapter engineExecutionListener = new ExecutionListenerAdapter(testPlan,
-			testExecutionListener);
-		for (TestEngine testEngine : root.getTestEngines()) {
-			TestDescriptor testDescriptor = root.getTestDescriptorFor(testEngine);
-			execute(testEngine, new ExecutionRequest(testDescriptor, engineExecutionListener, configurationParameters));
+		Optional<StreamInterceptingTestExecutionListener> streamInterceptingTestExecutionListener = StreamInterceptingTestExecutionListener.create(
+			configurationParameters, testExecutionListener::reportingEntryPublished);
+		streamInterceptingTestExecutionListener.ifPresent(listenerRegistry::registerListeners);
+		try {
+			action.accept(testExecutionListener);
 		}
-		testExecutionListener.testPlanExecutionFinished(testPlan);
+		finally {
+			streamInterceptingTestExecutionListener.ifPresent(StreamInterceptingTestExecutionListener::unregister);
+		}
 	}
 
 	private TestExecutionListenerRegistry buildListenerRegistryForExecution(TestExecutionListener... listeners) {
@@ -175,9 +234,9 @@ class DefaultLauncher implements Launcher {
 	}
 
 	private void handleThrowable(TestEngine testEngine, String phase, Throwable throwable) {
+		BlacklistedExceptions.rethrowIfBlacklisted(throwable);
 		logger.warn(throwable,
 			() -> String.format("TestEngine with ID '%s' failed to %s tests", testEngine.getId(), phase));
-		BlacklistedExceptions.rethrowIfBlacklisted(throwable);
 	}
 
 }

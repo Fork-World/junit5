@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.launcher;
@@ -21,7 +21,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apiguardian.api.API;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.engine.FilterResult;
 import org.junit.platform.engine.TestTag;
@@ -48,11 +48,9 @@ import org.junit.platform.launcher.tagexpression.TagExpression;
 @API(status = STABLE, since = "1.0")
 public final class TagFilter {
 
-	///CLOVER:OFF
 	private TagFilter() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	/**
 	 * Create an <em>include</em> filter based on the supplied tag expressions.

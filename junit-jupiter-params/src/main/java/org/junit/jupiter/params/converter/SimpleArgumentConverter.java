@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.converter;
@@ -38,9 +38,9 @@ public abstract class SimpleArgumentConverter implements ArgumentConverter {
 	 * @param targetType the target type the source object should be converted
 	 * into; never {@code null}
 	 * @return the converted object; may be {@code null} but only if the target
-	 * type is a reference type.
+	 * type is a reference type
 	 * @throws ArgumentConversionException in case an error occurs during the
-	 * conversion.
+	 * conversion
 	 */
 	protected abstract Object convert(Object source, Class<?> targetType) throws ArgumentConversionException;
 

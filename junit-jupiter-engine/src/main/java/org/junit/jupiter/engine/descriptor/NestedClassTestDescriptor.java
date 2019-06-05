@@ -1,28 +1,28 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.descriptor;
 
 import static org.apiguardian.api.API.Status.INTERNAL;
+import static org.junit.jupiter.engine.descriptor.DisplayNameUtils.createDisplayNameSupplierForNestedClass;
 
-import java.lang.reflect.Constructor;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 
 import org.apiguardian.api.API;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.engine.execution.ExecutableInvoker;
+import org.junit.jupiter.api.extension.TestInstances;
+import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.jupiter.engine.execution.JupiterEngineExecutionContext;
 import org.junit.jupiter.engine.extension.ExtensionRegistry;
-import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
@@ -40,15 +40,14 @@ import org.junit.platform.engine.UniqueId;
 @API(status = INTERNAL, since = "5.0")
 public class NestedClassTestDescriptor extends ClassTestDescriptor {
 
-	private static final ExecutableInvoker executableInvoker = new ExecutableInvoker();
-
+	public static final String SEGMENT_TYPE = "nested-class";
 	/**
 	 * Set of local class-level tags; does not contain tags from parent.
 	 */
 	private final Set<TestTag> tags;
 
-	public NestedClassTestDescriptor(UniqueId uniqueId, Class<?> testClass) {
-		super(uniqueId, Class::getSimpleName, testClass);
+	public NestedClassTestDescriptor(UniqueId uniqueId, Class<?> testClass, JupiterConfiguration configuration) {
+		super(uniqueId, testClass, createDisplayNameSupplierForNestedClass(testClass, configuration), configuration);
 
 		this.tags = getTags(testClass);
 	}
@@ -58,7 +57,7 @@ public class NestedClassTestDescriptor extends ClassTestDescriptor {
 	@Override
 	public final Set<TestTag> getTags() {
 		// return modifiable copy
-		Set<TestTag> allTags = new LinkedHashSet<TestTag>(this.tags);
+		Set<TestTag> allTags = new LinkedHashSet<>(this.tags);
 		getParent().ifPresent(parentDescriptor -> allTags.addAll(parentDescriptor.getTags()));
 		return allTags;
 	}
@@ -66,15 +65,14 @@ public class NestedClassTestDescriptor extends ClassTestDescriptor {
 	// --- Node ----------------------------------------------------------------
 
 	@Override
-	protected Object instantiateTestClass(JupiterEngineExecutionContext parentExecutionContext,
+	protected TestInstances instantiateTestClass(JupiterEngineExecutionContext parentExecutionContext,
 			ExtensionRegistry registry, ExtensionContext extensionContext) {
 
 		// Extensions registered for nested classes and below are not to be used for instantiating outer classes
 		Optional<ExtensionRegistry> childExtensionRegistryForOuterInstance = Optional.empty();
-		Object outerInstance = parentExecutionContext.getTestInstanceProvider().getTestInstance(
+		TestInstances outerInstances = parentExecutionContext.getTestInstancesProvider().getTestInstances(
 			childExtensionRegistryForOuterInstance);
-		Constructor<?> constructor = ReflectionUtils.getDeclaredConstructor(getTestClass());
-		return executableInvoker.invoke(constructor, outerInstance, extensionContext, registry);
+		return instantiateTestClass(Optional.of(outerInstances), registry, extensionContext);
 	}
 
 }

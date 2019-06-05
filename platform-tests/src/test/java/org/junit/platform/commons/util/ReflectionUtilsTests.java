@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -16,16 +16,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.platform.commons.function.Try.success;
 import static org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode.BOTTOM_UP;
 import static org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode.TOP_DOWN;
 import static org.junit.platform.commons.util.ReflectionUtils.findMethod;
 import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
 import static org.junit.platform.commons.util.ReflectionUtils.invokeMethod;
 import static org.junit.platform.commons.util.ReflectionUtils.readFieldValue;
-import static org.mockito.Mockito.mock;
+import static org.junit.platform.commons.util.ReflectionUtils.tryToReadFieldValue;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,19 +34,25 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.extensions.TempDirectory;
-import org.junit.jupiter.extensions.TempDirectory.Root;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.engine.TrackLogRecords;
 import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.PreconditionViolationException;
+import org.junit.platform.commons.logging.LogRecordListener;
 import org.junit.platform.commons.util.ReflectionUtilsTests.ClassWithNestedClasses.Nested1;
 import org.junit.platform.commons.util.ReflectionUtilsTests.ClassWithNestedClasses.Nested2;
 import org.junit.platform.commons.util.ReflectionUtilsTests.ClassWithNestedClasses.Nested3;
@@ -67,37 +73,41 @@ class ReflectionUtilsTests {
 	private static final Predicate<Method> methodContains5 = method -> method.getName().contains("5");
 
 	@Test
-	void getDefaultClassLoaderWithExplicitContextClassLoader() {
-		ClassLoader original = Thread.currentThread().getContextClassLoader();
-		ClassLoader mock = mock(ClassLoader.class);
-		Thread.currentThread().setContextClassLoader(mock);
-		try {
-			assertSame(mock, ClassLoaderUtils.getDefaultClassLoader());
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(original);
-		}
-	}
-
-	@Test
-	void getDefaultClassLoaderWithNullContextClassLoader() {
-		ClassLoader original = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(null);
-		try {
-			assertSame(ClassLoader.getSystemClassLoader(), ClassLoaderUtils.getDefaultClassLoader());
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(original);
-		}
-	}
-
-	@Test
 	void isPublic() throws Exception {
 		assertTrue(ReflectionUtils.isPublic(PublicClass.class));
 		assertTrue(ReflectionUtils.isPublic(PublicClass.class.getMethod("publicMethod")));
 
 		assertFalse(ReflectionUtils.isPublic(PrivateClass.class));
 		assertFalse(ReflectionUtils.isPublic(PrivateClass.class.getDeclaredMethod("privateMethod")));
+		assertFalse(ReflectionUtils.isPublic(ProtectedClass.class));
+		assertFalse(ReflectionUtils.isPublic(ProtectedClass.class.getDeclaredMethod("protectedMethod")));
+		assertFalse(ReflectionUtils.isPublic(PackageVisibleClass.class));
+		assertFalse(ReflectionUtils.isPublic(PackageVisibleClass.class.getDeclaredMethod("packageVisibleMethod")));
+	}
+
+	@Test
+	void isPrivate() throws Exception {
+		assertTrue(ReflectionUtils.isPrivate(PrivateClass.class));
+		assertTrue(ReflectionUtils.isPrivate(PrivateClass.class.getDeclaredMethod("privateMethod")));
+
+		assertFalse(ReflectionUtils.isPrivate(PublicClass.class));
+		assertFalse(ReflectionUtils.isPrivate(PublicClass.class.getMethod("publicMethod")));
+		assertFalse(ReflectionUtils.isPrivate(ProtectedClass.class));
+		assertFalse(ReflectionUtils.isPrivate(ProtectedClass.class.getDeclaredMethod("protectedMethod")));
+		assertFalse(ReflectionUtils.isPrivate(PackageVisibleClass.class));
+		assertFalse(ReflectionUtils.isPrivate(PackageVisibleClass.class.getDeclaredMethod("packageVisibleMethod")));
+	}
+
+	@Test
+	void isNotPrivate() throws Exception {
+		assertTrue(ReflectionUtils.isNotPrivate(PublicClass.class));
+		assertTrue(ReflectionUtils.isNotPrivate(PublicClass.class.getDeclaredMethod("publicMethod")));
+		assertTrue(ReflectionUtils.isNotPrivate(ProtectedClass.class));
+		assertTrue(ReflectionUtils.isNotPrivate(ProtectedClass.class.getDeclaredMethod("protectedMethod")));
+		assertTrue(ReflectionUtils.isNotPrivate(PackageVisibleClass.class));
+		assertTrue(ReflectionUtils.isNotPrivate(PackageVisibleClass.class.getDeclaredMethod("packageVisibleMethod")));
+
+		assertFalse(ReflectionUtils.isNotPrivate(PrivateClass.class.getDeclaredMethod("privateMethod")));
 	}
 
 	@Test
@@ -116,6 +126,33 @@ class ReflectionUtilsTests {
 
 		assertFalse(ReflectionUtils.isStatic(PublicClass.class));
 		assertFalse(ReflectionUtils.isStatic(PublicClass.class.getDeclaredMethod("publicMethod")));
+	}
+
+	@Test
+	void isNotStatic() throws Exception {
+		assertTrue(ReflectionUtils.isNotStatic(PublicClass.class));
+		assertTrue(ReflectionUtils.isNotStatic(PublicClass.class.getDeclaredMethod("publicMethod")));
+
+		assertFalse(ReflectionUtils.isNotStatic(StaticClass.class));
+		assertFalse(ReflectionUtils.isNotStatic(StaticClass.class.getDeclaredMethod("staticMethod")));
+	}
+
+	@Test
+	void isFinal() throws Exception {
+		assertTrue(ReflectionUtils.isFinal(FinalClass.class));
+		assertTrue(ReflectionUtils.isFinal(FinalClass.class.getDeclaredMethod("finalMethod")));
+
+		assertFalse(ReflectionUtils.isFinal(PublicClass.class));
+		assertFalse(ReflectionUtils.isFinal(PublicClass.class.getDeclaredMethod("publicMethod")));
+	}
+
+	@Test
+	void isNotFinal() throws Exception {
+		assertTrue(ReflectionUtils.isNotFinal(PublicClass.class));
+		assertTrue(ReflectionUtils.isNotFinal(PublicClass.class.getDeclaredMethod("publicMethod")));
+
+		assertFalse(ReflectionUtils.isNotFinal(FinalClass.class));
+		assertFalse(ReflectionUtils.isNotFinal(FinalClass.class.getDeclaredMethod("finalMethod")));
 	}
 
 	@Test
@@ -160,18 +197,36 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void readFieldValueOfNonexistentStaticField() {
 		assertThat(readFieldValue(MyClass.class, "doesNotExist", null)).isNotPresent();
 		assertThat(readFieldValue(MySubClass.class, "staticField", null)).isNotPresent();
 	}
 
 	@Test
+	void tryToReadFieldValueOfNonexistentStaticField() {
+		assertThrows(NoSuchFieldException.class, () -> tryToReadFieldValue(MyClass.class, "doesNotExist", null).get());
+		assertThrows(NoSuchFieldException.class,
+			() -> tryToReadFieldValue(MySubClass.class, "staticField", null).get());
+	}
+
+	@Test
+	@SuppressWarnings("deprecation")
 	void readFieldValueOfNonexistentInstanceField() {
 		assertThat(readFieldValue(MyClass.class, "doesNotExist", new MyClass(42))).isNotPresent();
 		assertThat(readFieldValue(MyClass.class, "doesNotExist", new MySubClass(42))).isNotPresent();
 	}
 
 	@Test
+	void tryToReadFieldValueOfNonexistentInstanceField() {
+		assertThrows(NoSuchFieldException.class,
+			() -> tryToReadFieldValue(MyClass.class, "doesNotExist", new MyClass(42)).get());
+		assertThrows(NoSuchFieldException.class,
+			() -> tryToReadFieldValue(MyClass.class, "doesNotExist", new MySubClass(42)).get());
+	}
+
+	@Test
+	@SuppressWarnings("deprecation")
 	void readFieldValueOfExistingStaticField() throws Exception {
 		assertThat(readFieldValue(MyClass.class, "staticField", null)).contains(42);
 
@@ -181,13 +236,42 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
+	void tryToReadFieldValueOfExistingStaticField() throws Exception {
+		assertThat(tryToReadFieldValue(MyClass.class, "staticField", null).get()).isEqualTo(42);
+
+		Field field = MyClass.class.getDeclaredField("staticField");
+		assertThat(tryToReadFieldValue(field).get()).isEqualTo(42);
+		assertThat(tryToReadFieldValue(field, null).get()).isEqualTo(42);
+	}
+
+	@Test
+	@SuppressWarnings("deprecation")
 	void readFieldValueOfExistingInstanceField() throws Exception {
 		MyClass instance = new MyClass(42);
 		assertThat(readFieldValue(MyClass.class, "instanceField", instance)).contains(42);
 
 		Field field = MyClass.class.getDeclaredField("instanceField");
 		assertThat(readFieldValue(field, instance)).contains(42);
-		assertThat(readFieldValue(field, null)).isNotPresent();
+	}
+
+	@Test
+	@SuppressWarnings("deprecation")
+	void attemptToReadFieldValueOfExistingInstanceFieldAsStaticField() throws Exception {
+		Field field = MyClass.class.getDeclaredField("instanceField");
+		Exception exception = assertThrows(PreconditionViolationException.class, () -> readFieldValue(field, null));
+		assertThat(exception)//
+				.hasMessageStartingWith("Cannot read non-static field")//
+				.hasMessageEndingWith("on a null instance.");
+	}
+
+	@Test
+	void tryToReadFieldValueOfExistingInstanceField() throws Exception {
+		MyClass instance = new MyClass(42);
+		assertThat(tryToReadFieldValue(MyClass.class, "instanceField", instance).get()).isEqualTo(42);
+
+		Field field = MyClass.class.getDeclaredField("instanceField");
+		assertThat(tryToReadFieldValue(field, instance).get()).isEqualTo(42);
+		assertThrows(PreconditionViolationException.class, () -> tryToReadFieldValue(field, null).get());
 	}
 
 	@Test
@@ -351,99 +435,102 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
-	void loadClassPreconditions() {
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.loadClass(null));
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.loadClass(""));
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.loadClass("   "));
+	void tryToLoadClassPreconditions() {
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToLoadClass(null));
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToLoadClass(""));
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToLoadClass("   "));
 
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.loadClass(null, null));
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.loadClass(getClass().getName(), null));
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToLoadClass(null, null));
+		assertThrows(PreconditionViolationException.class,
+			() -> ReflectionUtils.tryToLoadClass(getClass().getName(), null));
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void loadClassWhenClassNotFoundException() {
 		assertThat(ReflectionUtils.loadClass("foo.bar.EnigmaClassThatDoesNotExist")).isEmpty();
 	}
 
 	@Test
+	void tryToLoadClassWhenClassNotFoundException() {
+		assertThrows(ClassNotFoundException.class,
+			() -> ReflectionUtils.tryToLoadClass("foo.bar.EnigmaClassThatDoesNotExist").get());
+	}
+
+	@Test
+	@SuppressWarnings("deprecation")
 	void loadClass() {
 		Optional<Class<?>> optional = ReflectionUtils.loadClass(Integer.class.getName());
 		assertThat(optional).contains(Integer.class);
 	}
 
 	@Test
-	void loadClassTrimsClassName() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass("  " + Integer.class.getName() + "\t");
-		assertThat(optional).contains(Integer.class);
+	void tryToLoadClass() {
+		assertThat(ReflectionUtils.tryToLoadClass(Integer.class.getName())).isEqualTo(success(Integer.class));
 	}
 
 	@Test
-	void loadClassForPrimitive() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(int.class.getName());
-		assertThat(optional).contains(int.class);
+	void tryToLoadClassTrimsClassName() {
+		assertThat(ReflectionUtils.tryToLoadClass("  " + Integer.class.getName() + "\t")).isEqualTo(
+			success(Integer.class));
 	}
 
 	@Test
-	void loadClassForPrimitiveArray() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(int[].class.getName());
-		assertThat(optional).contains(int[].class);
+	void tryToLoadClassForPrimitive() {
+		assertThat(ReflectionUtils.tryToLoadClass(int.class.getName())).isEqualTo(success(int.class));
 	}
 
 	@Test
-	void loadClassForPrimitiveArrayUsingSourceCodeSyntax() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass("int[]");
-		assertThat(optional).contains(int[].class);
+	void tryToLoadClassForPrimitiveArray() {
+		assertThat(ReflectionUtils.tryToLoadClass(int[].class.getName())).isEqualTo(success(int[].class));
 	}
 
 	@Test
-	void loadClassForObjectArray() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(String[].class.getName());
-		assertThat(optional).contains(String[].class);
+	void tryToLoadClassForPrimitiveArrayUsingSourceCodeSyntax() {
+		assertThat(ReflectionUtils.tryToLoadClass("int[]")).isEqualTo(success(int[].class));
 	}
 
 	@Test
-	void loadClassForObjectArrayUsingSourceCodeSyntax() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass("java.lang.String[]");
-		assertThat(optional).contains(String[].class);
+	void tryToLoadClassForObjectArray() {
+		assertThat(ReflectionUtils.tryToLoadClass(String[].class.getName())).isEqualTo(success(String[].class));
 	}
 
 	@Test
-	void loadClassForTwoDimensionalPrimitiveArray() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(int[][].class.getName());
-		assertThat(optional).contains(int[][].class);
+	void tryToLoadClassForObjectArrayUsingSourceCodeSyntax() {
+		assertThat(ReflectionUtils.tryToLoadClass("java.lang.String[]")).isEqualTo(success(String[].class));
 	}
 
 	@Test
-	void loadClassForTwoDimensionaldimensionalPrimitiveArrayUsingSourceCodeSyntax() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass("int[][]");
-		assertThat(optional).contains(int[][].class);
+	void tryToLoadClassForTwoDimensionalPrimitiveArray() {
+		assertThat(ReflectionUtils.tryToLoadClass(int[][].class.getName())).isEqualTo(success(int[][].class));
 	}
 
 	@Test
-	void loadClassForMultidimensionalPrimitiveArray() {
-		String className = int[][][][][].class.getName();
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(className);
-		assertThat(optional).as(className).contains(int[][][][][].class);
+	void tryToLoadClassForTwoDimensionaldimensionalPrimitiveArrayUsingSourceCodeSyntax() {
+		assertThat(ReflectionUtils.tryToLoadClass("int[][]")).isEqualTo(success(int[][].class));
 	}
 
 	@Test
-	void loadClassForMultidimensionalPrimitiveArrayUsingSourceCodeSyntax() {
-		String className = "int[][][][][]";
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(className);
-		assertThat(optional).as(className).contains(int[][][][][].class);
+	void tryToLoadClassForMultidimensionalPrimitiveArray() {
+		assertThat(ReflectionUtils.tryToLoadClass(int[][][][][].class.getName())).isEqualTo(
+			success(int[][][][][].class));
 	}
 
 	@Test
-	void loadClassForMultidimensionalObjectArray() {
-		String className = String[][][][][].class.getName();
-		Optional<Class<?>> optional = ReflectionUtils.loadClass(className);
-		assertThat(optional).as(className).contains(String[][][][][].class);
+	void tryToLoadClassForMultidimensionalPrimitiveArrayUsingSourceCodeSyntax() {
+		assertThat(ReflectionUtils.tryToLoadClass("int[][][][][]")).isEqualTo(success(int[][][][][].class));
 	}
 
 	@Test
-	void loadClassForMultidimensionalObjectArrayUsingSourceCodeSyntax() {
-		Optional<Class<?>> optional = ReflectionUtils.loadClass("java.lang.String[][][][][]");
-		assertThat(optional).contains(String[][][][][].class);
+	void tryToLoadClassForMultidimensionalObjectArray() {
+		assertThat(ReflectionUtils.tryToLoadClass(String[][][][][].class.getName())).isEqualTo(
+			success(String[][][][][].class));
+	}
+
+	@Test
+	void tryToLoadClassForMultidimensionalObjectArrayUsingSourceCodeSyntax() {
+		assertThat(ReflectionUtils.tryToLoadClass("java.lang.String[][][][][]")).isEqualTo(
+			success(String[][][][][].class));
 	}
 
 	@Test
@@ -516,6 +603,7 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void getOutermostInstancePreconditions() {
 		// @formatter:off
 		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.getOutermostInstance(null, null));
@@ -525,6 +613,7 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
+	@SuppressWarnings("deprecation")
 	void getOutermostInstance() {
 		FirstClass firstClass = new FirstClass();
 		FirstClass.SecondClass secondClass = firstClass.new SecondClass();
@@ -539,8 +628,7 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
-	@ExtendWith(TempDirectory.class)
-	void getAllClasspathRootDirectories(@Root Path tempDirectory) throws Exception {
+	void getAllClasspathRootDirectories(@TempDir Path tempDirectory) throws Exception {
 		Path root1 = tempDirectory.resolve("root1").toAbsolutePath();
 		Path root2 = tempDirectory.resolve("root2").toAbsolutePath();
 		String testClassPath = root1 + File.pathSeparator + root2;
@@ -584,6 +672,34 @@ class ReflectionUtilsTests {
 		// @formatter:on
 	}
 
+	/**
+	 * @since 1.3
+	 */
+	@Test
+	@TrackLogRecords
+	void findNestedClassesWithInvalidNestedClassFile(LogRecordListener listener) throws Exception {
+		URL jarUrl = getClass().getResource("/gh-1436-invalid-nested-class-file.jar");
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { jarUrl })) {
+			String fqcn = "tests.NestedInterfaceGroovyTests";
+			Class<?> classWithInvalidNestedClassFile = classLoader.loadClass(fqcn);
+
+			assertEquals(fqcn, classWithInvalidNestedClassFile.getName());
+			NoClassDefFoundError noClassDefFoundError = assertThrows(NoClassDefFoundError.class,
+				() -> classWithInvalidNestedClassFile.getDeclaredClasses());
+			assertEquals("tests/NestedInterfaceGroovyTests$NestedInterface$1", noClassDefFoundError.getMessage());
+
+			assertThat(ReflectionUtils.findNestedClasses(classWithInvalidNestedClassFile, clazz -> true)).isEmpty();
+			// @formatter:off
+			String logMessage = listener.stream(ReflectionUtils.class, Level.FINE)
+					.findFirst()
+					.map(LogRecord::getMessage)
+					.orElse("didn't find log record");
+			// @formatter:on
+			assertThat(logMessage).isEqualTo("Failed to retrieve declared classes for " + fqcn);
+		}
+	}
+
 	@Test
 	void getDeclaredConstructorPreconditions() {
 		// @formatter:off
@@ -605,24 +721,26 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
-	void getMethodPreconditions() {
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.getMethod(null, null));
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.getMethod(String.class, null));
-		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.getMethod(null, "hashCode"));
+	void tryToGetMethodPreconditions() {
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToGetMethod(null, null));
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToGetMethod(String.class, null));
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.tryToGetMethod(null, "hashCode"));
 	}
 
 	@Test
-	void getMethod() throws Exception {
-		assertThat(ReflectionUtils.getMethod(Object.class, "hashCode")).contains(Object.class.getMethod("hashCode"));
-		assertThat(ReflectionUtils.getMethod(String.class, "charAt", int.class))//
-				.contains(String.class.getMethod("charAt", int.class));
+	void tryToGetMethod() throws Exception {
+		assertThat(ReflectionUtils.tryToGetMethod(Object.class, "hashCode").get()).isEqualTo(
+			Object.class.getMethod("hashCode"));
+		assertThat(ReflectionUtils.tryToGetMethod(String.class, "charAt", int.class).get())//
+				.isEqualTo(String.class.getMethod("charAt", int.class));
 
-		assertThat(ReflectionUtils.getMethod(Path.class, "subpath", int.class, int.class))//
-				.contains(Path.class.getMethod("subpath", int.class, int.class));
-		assertThat(ReflectionUtils.getMethod(String.class, "chars")).contains(String.class.getMethod("chars"));
+		assertThat(ReflectionUtils.tryToGetMethod(Path.class, "subpath", int.class, int.class).get())//
+				.isEqualTo(Path.class.getMethod("subpath", int.class, int.class));
+		assertThat(ReflectionUtils.tryToGetMethod(String.class, "chars").get()).isEqualTo(
+			String.class.getMethod("chars"));
 
-		assertThat(ReflectionUtils.getMethod(String.class, "noSuchMethod")).isEmpty();
-		assertThat(ReflectionUtils.getMethod(Object.class, "clone", int.class)).isEmpty();
+		assertThat(ReflectionUtils.tryToGetMethod(String.class, "noSuchMethod").toOptional()).isEmpty();
+		assertThat(ReflectionUtils.tryToGetMethod(Object.class, "clone", int.class).toOptional()).isEmpty();
 	}
 
 	@Test
@@ -1025,13 +1143,99 @@ class ReflectionUtilsTests {
 	}
 
 	@Test
-	void isGeneric() throws Exception {
+	void isGeneric() {
 		for (Method method : Generic.class.getMethods()) {
 			assertTrue(ReflectionUtils.isGeneric(method));
 		}
 		for (Method method : PublicClass.class.getMethods()) {
 			assertFalse(ReflectionUtils.isGeneric(method));
 		}
+	}
+
+	@Test
+	void readFieldValuesPreconditions() {
+		assertThrows(PreconditionViolationException.class, () -> ReflectionUtils.readFieldValues(null, new Object()));
+		assertThrows(PreconditionViolationException.class,
+			() -> ReflectionUtils.readFieldValues(new ArrayList<>(), new Object(), null));
+	}
+
+	@Test
+	void readFieldValuesFromInstance() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, f -> true, TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, new ClassWithFields());
+
+		assertThat(values).containsExactly("enigma", 3.14, "text", 2.5, null, 42, "constant", 99);
+	}
+
+	@Test
+	void readFieldValuesFromClass() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, ReflectionUtils::isStatic, TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, null);
+
+		assertThat(values).containsExactly(2.5, "constant", 99);
+	}
+
+	@Test
+	void readFieldValuesFromInstanceWithTypeFilterForString() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, isA(String.class), TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, new ClassWithFields(), isA(String.class));
+
+		assertThat(values).containsExactly("enigma", "text", null, "constant");
+	}
+
+	@Test
+	void readFieldValuesFromClassWithTypeFilterForString() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, isA(String.class).and(ReflectionUtils::isStatic),
+			TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, null, isA(String.class));
+
+		assertThat(values).containsExactly("constant");
+	}
+
+	@Test
+	void readFieldValuesFromInstanceWithTypeFilterForInteger() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, isA(int.class), TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, new ClassWithFields(), isA(int.class));
+
+		assertThat(values).containsExactly(42);
+	}
+
+	@Test
+	void readFieldValuesFromClassWithTypeFilterForInteger() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class,
+			isA(Integer.class).and(ReflectionUtils::isStatic), TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, null, isA(Integer.class));
+
+		assertThat(values).containsExactly(99);
+	}
+
+	@Test
+	void readFieldValuesFromInstanceWithTypeFilterForDouble() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, isA(double.class), TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, new ClassWithFields(), isA(double.class));
+
+		assertThat(values).containsExactly(3.14);
+	}
+
+	@Test
+	void readFieldValuesFromClassWithTypeFilterForDouble() {
+		var fields = ReflectionUtils.findFields(ClassWithFields.class, isA(Double.class).and(ReflectionUtils::isStatic),
+			TOP_DOWN);
+
+		var values = ReflectionUtils.readFieldValues(fields, null, isA(Double.class));
+
+		assertThat(values).containsExactly(2.5);
+	}
+
+	private Predicate<Field> isA(Class<?> type) {
+		return f -> f.getType().isAssignableFrom(type);
 	}
 
 	private static void createDirectories(Path... paths) throws IOException {
@@ -1205,6 +1409,27 @@ class ReflectionUtilsTests {
 
 		@SuppressWarnings("unused")
 		private void privateMethod() {
+		}
+	}
+
+	protected class ProtectedClass {
+
+		@SuppressWarnings("unused")
+		protected void protectedMethod() {
+		}
+	}
+
+	class PackageVisibleClass {
+
+		@SuppressWarnings("unused")
+		void packageVisibleMethod() {
+		}
+	}
+
+	final class FinalClass {
+
+		@SuppressWarnings("unused")
+		final void finalMethod() {
 		}
 	}
 
@@ -1419,6 +1644,27 @@ class ReflectionUtilsTests {
 		@Override
 		public void otherMethod2() {
 		}
+	}
+
+	public static class ClassWithFields {
+
+		public static final String CONST = "constant";
+
+		public static final Integer CONST_INTEGER = 99;
+
+		public static final Double CONST_DOUBLE = 2.5;
+
+		public final String stringField = "text";
+
+		@SuppressWarnings("unused")
+		private final String privateStringField = "enigma";
+
+		final String nullStringField = null;
+
+		public final int integerField = 42;
+
+		public final double doubleField = 3.14;
+
 	}
 
 	@SuppressWarnings("unused")

@@ -1,16 +1,16 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
 
-import static org.apiguardian.api.API.Status.EXPERIMENTAL;
+import static org.apiguardian.api.API.Status.MAINTAINED;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -29,10 +29,10 @@ import org.junit.platform.commons.annotation.Testable;
  * a test case but rather a factory for test cases.
  *
  * <p>{@code @TestFactory} methods must not be {@code private} or {@code static}
- * and must return a {@code Stream}, {@code Collection}, {@code Iterable}, or
- * {@code Iterator} of {@link DynamicNode} instances. Valid, instantiable
- * subclasses of {@code DynamicNode} are {@link DynamicContainer} and
- * {@link DynamicTest}. <em>Dynamic tests</em> will then be executed lazily,
+ * and must return a {@code Stream}, {@code Collection}, {@code Iterable},
+ * {@code Iterator}, or array of {@link DynamicNode} instances. Supported
+ * subclasses of {@code DynamicNode} include {@link DynamicContainer} and
+ * {@link DynamicTest}. <em>Dynamic tests</em> will be executed lazily,
  * enabling dynamic and even non-deterministic generation of test cases.
  *
  * <p>Any {@code Stream} returned by a {@code @TestFactory} will be properly
@@ -43,6 +43,27 @@ import org.junit.platform.commons.annotation.Testable;
  * resolved by {@link org.junit.jupiter.api.extension.ParameterResolver
  * ParameterResolvers}.
  *
+ * <h3>Test Execution Order</h3>
+ *
+ * <p>By default, test methods will be ordered using an algorithm that is
+ * deterministic but intentionally nonobvious. This ensures that subsequent runs
+ * of a test suite execute test methods in the same order, thereby allowing for
+ * repeatable builds. In this context, a <em>test method</em> is any instance
+ * method that is directly annotated or meta-annotated with {@code @Test},
+ * {@code @RepeatedTest}, {@code @ParameterizedTest}, {@code @TestFactory}, or
+ * {@code @TestTemplate}.
+ *
+ * <p>Although true <em>unit tests</em> typically should not rely on the order
+ * in which they are executed, there are times when it is necessary to enforce
+ * a specific test method execution order &mdash; for example, when writing
+ * <em>integration tests</em> or <em>functional tests</em> where the sequence of
+ * the tests is important, especially in conjunction with
+ * {@link TestInstance @TestInstance(Lifecycle.PER_CLASS)}.
+ *
+ * <p>To control the order in which test methods are executed, annotate your
+ * test class or test interface with {@link TestMethodOrder @TestMethodOrder}
+ * and specify the desired {@link MethodOrderer} implementation.
+ *
  * @since 5.0
  * @see Test
  * @see DynamicNode
@@ -52,7 +73,7 @@ import org.junit.platform.commons.annotation.Testable;
 @Target({ ElementType.ANNOTATION_TYPE, ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@API(status = EXPERIMENTAL, since = "5.0")
+@API(status = MAINTAINED, since = "5.3")
 @Testable
 public @interface TestFactory {
 }

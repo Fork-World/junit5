@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.aggregator;
@@ -15,19 +15,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod;
+import static org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder.request;
+import static org.junit.platform.testkit.engine.EventConditions.event;
+import static org.junit.platform.testkit.engine.EventConditions.finishedWithFailure;
+import static org.junit.platform.testkit.engine.EventConditions.test;
+import static org.junit.platform.testkit.engine.TestExecutionResultConditions.instanceOf;
+import static org.junit.platform.testkit.engine.TestExecutionResultConditions.message;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ArgumentConversionException;
+import org.junit.jupiter.params.converter.ArgumentConverter;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.util.Preconditions;
+import org.junit.platform.engine.DiscoverySelector;
+import org.junit.platform.testkit.engine.EngineExecutionResults;
+import org.junit.platform.testkit.engine.EngineTestKit;
 
 /**
  * Integration tests for {@link ArgumentsAccessor}, {@link AggregateWith},
@@ -35,26 +57,131 @@ import org.junit.jupiter.params.provider.CsvSource;
  *
  * @since 5.2
  */
-class AggregatorIntegrationTests {
+public class AggregatorIntegrationTests {
 
 	@ParameterizedTest
-	@CsvSource({ "Jane, Doe, 1980-04-16, F, red", "Jack, Smith, 2000-11-22, M, blue" })
+	@CsvSource({ //
+			"Jane, Doe, 1980-04-16, F, red", //
+			"Jack, Smith, 2000-11-22, M, blue" //
+	})
 	void personAggregator(@AggregateWith(PersonAggregator.class) Person person) {
 		testPersonAggregator(person);
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "Jane, Doe, 1980-04-16, F, red", "Jack, Smith, 2000-11-22, M, blue" })
+	@CsvSource({ //
+			"Jane, Doe, 1980-04-16, F, red", //
+			"Jack, Smith, 2000-11-22, M, blue" //
+	})
 	void personAggregatorRegisteredViaCustomAnnotation(@CsvToPerson Person person) {
 		testPersonAggregator(person);
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "Jane, Doe, 1980-04-16, F, red", "Jack, Smith, 2000-11-22, M, blue" })
-	void personAggregatorsRegisteredViaCustomAnnotation(@CsvToPerson Person person1, @CsvToPerson Person person2) {
-		assertEquals(person1.getFullName(), person2.getFullName());
-		testPersonAggregator(person1);
-		testPersonAggregator(person2);
+	@CsvSource({ //
+			"42 Peachtree Street, Atlanta, 30318", //
+			"99 Peachtree Road, Atlanta, 30318"//
+	})
+	void addressAggregator(@CsvToAddress Address address) {
+		testAddressAggegator(address);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ //
+			"Jane, Doe, 1980-04-16, F, 42 Peachtree Street, Atlanta, 30318, red", //
+			"Jack, Smith, 2000-11-22, M, 99 Peachtree Road, Atlanta, 30318, blue"//
+	})
+	void personAggregatorAndAddressAggregator(@CsvToPerson Person person,
+			@CsvToAddress @StartIndex(4) Address address) {
+
+		testPersonAggregator(person);
+		testAddressAggegator(address);
+	}
+
+	@ParameterizedTest(name = "Mixed Mode #1: {arguments}")
+	@CsvSource({ //
+			"gh-11111111, Jane, Doe, 1980-04-16, F, 42 Peachtree Street, Atlanta, 30318, red", //
+			"gh-22222222, Jack, Smith, 2000-11-22, M, 99 Peachtree Road, Atlanta, 30318, blue"//
+	})
+	void mixedMode(String issueNumber, @CsvToPerson @StartIndex(1) Person person,
+			@CsvToAddress @StartIndex(5) Address address, TestInfo testInfo) {
+
+		assertThat(issueNumber).startsWith("gh-");
+		testPersonAggregator(person);
+		testAddressAggegator(address);
+		assertThat(testInfo.getDisplayName()).startsWith("Mixed Mode #1");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "cat, bird, mouse", "mouse, cat, bird", "mouse, bird, cat" })
+	void mapAggregator(@AggregateWith(MapAggregator.class) Map<String, Integer> map) {
+		assertThat(map).containsOnly(entry("cat", 3), entry("bird", 4), entry("mouse", 5));
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
+	void argumentsAccessor(ArgumentsAccessor arguments) {
+		assertEquals(55, IntStream.range(0, arguments.size()).map(i -> arguments.getInteger(i)).sum());
+	}
+
+	@ParameterizedTest(name = "2 ArgumentsAccessors: {arguments}")
+	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
+	void argumentsAccessors(ArgumentsAccessor arguments1, ArgumentsAccessor arguments2) {
+		assertArrayEquals(arguments1.toArray(), arguments2.toArray());
+	}
+
+	@ParameterizedTest(name = "ArgumentsAccessor and TestInfo: {arguments}")
+	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
+	void argumentsAccessorAndTestInfo(ArgumentsAccessor arguments, TestInfo testInfo) {
+		assertEquals(55, IntStream.range(0, arguments.size()).map(i -> arguments.getInteger(i)).sum());
+		assertThat(testInfo.getDisplayName()).startsWith("ArgumentsAccessor and TestInfo");
+	}
+
+	@ParameterizedTest(name = "Indexed Arguments and ArgumentsAccessor: {arguments}")
+	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
+	void indexedArgumentsAndArgumentsAccessor(int num1, int num2, ArgumentsAccessor arguments) {
+		assertEquals(1, num1);
+		assertEquals(2, num2);
+		assertEquals(55, IntStream.range(0, arguments.size()).map(i -> arguments.getInteger(i)).sum());
+	}
+
+	@ParameterizedTest(name = "Indexed Arguments, ArgumentsAccessor, and TestInfo: {arguments}")
+	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
+	void indexedArgumentsArgumentsAccessorAndTestInfo(int num1, int num2, ArgumentsAccessor arguments,
+			TestInfo testInfo) {
+
+		assertEquals(1, num1);
+		assertEquals(2, num2);
+		assertEquals(55, IntStream.range(0, arguments.size()).map(i -> arguments.getInteger(i)).sum());
+		assertThat(testInfo.getDisplayName()).startsWith("Indexed Arguments, ArgumentsAccessor, and TestInfo");
+	}
+
+	@ParameterizedTest(name = "Indexed Arguments, 2 ArgumentsAccessors, and TestInfo: {arguments}")
+	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
+	void indexedArgumentsArgumentsAccessorsAndTestInfo(int num1, int num2, ArgumentsAccessor arguments1,
+			ArgumentsAccessor arguments2, TestInfo testInfo) {
+
+		assertEquals(1, num1);
+		assertEquals(2, num2);
+		assertArrayEquals(arguments1.toArray(), arguments2.toArray());
+		assertEquals(55, IntStream.range(0, arguments1.size()).map(i -> arguments1.getInteger(i)).sum());
+		assertThat(testInfo.getDisplayName()).startsWith("Indexed Arguments, 2 ArgumentsAccessors, and TestInfo");
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "foo, bar" })
+	void nullAggregator(@AggregateWith(NullAggregator.class) Person person) {
+		assertNull(person);
+	}
+
+	@Test
+	void reportsExceptionForErroneousAggregator() {
+		var results = execute(
+			selectMethod(ErroneousTestCases.class, "testWithErroneousAggregator", Object.class.getName()));
+
+		results.tests().assertThatEvents()//
+				.haveExactly(1, event(test(), finishedWithFailure(instanceOf(ParameterResolutionException.class), //
+					message("Error aggregating arguments for parameter at index 0: something went horribly wrong"))));
 	}
 
 	private void testPersonAggregator(Person person) {
@@ -71,67 +198,19 @@ class AggregatorIntegrationTests {
 		}
 	}
 
-	@ParameterizedTest
-	@CsvSource({ "cat, bird, mouse", "mouse, cat, bird", "mouse, bird, cat" })
-	void mapAggregator(@AggregateWith(MapAggregator.class) Map<String, Integer> map) {
-		assertThat(map).containsOnly(entry("cat", 3), entry("bird", 4), entry("mouse", 5));
+	private void testAddressAggegator(Address address) {
+		assertThat(address.street).contains("Peachtree");
+		assertEquals("Atlanta", address.city);
+		assertEquals(30318, address.zipCode);
 	}
 
-	@ParameterizedTest
-	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
-	void argumentsAccessor(ArgumentsAccessor accessor) {
-		assertEquals(55, IntStream.range(0, accessor.size()).map(i -> accessor.getInteger(i)).sum());
+	private EngineExecutionResults execute(DiscoverySelector... selectors) {
+		return EngineTestKit.execute("junit-jupiter", request().selectors(selectors).build());
 	}
 
-	@ParameterizedTest(name = "2 ArgumentsAccessors: {arguments}")
-	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
-	void argumentsAccessors(ArgumentsAccessor accessor1, ArgumentsAccessor accessor2) {
-		assertArrayEquals(accessor1.toArray(), accessor2.toArray());
-	}
+	// -------------------------------------------------------------------------
 
-	@ParameterizedTest(name = "ArgumentsAccessor and TestInfo: {arguments}")
-	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
-	void argumentsAccessorAndTestInfo(ArgumentsAccessor accessor, TestInfo testInfo) {
-		assertEquals(55, IntStream.range(0, accessor.size()).map(i -> accessor.getInteger(i)).sum());
-		assertThat(testInfo.getDisplayName()).contains("ArgumentsAccessor and TestInfo");
-	}
-
-	@ParameterizedTest(name = "Indexed Arguments and ArgumentsAccessor: {arguments}")
-	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
-	void indexedArgumentsAndArgumentsAccessor(int num1, int num2, ArgumentsAccessor accessor) {
-		assertEquals(1, num1);
-		assertEquals(2, num2);
-		assertEquals(55, IntStream.range(0, accessor.size()).map(i -> accessor.getInteger(i)).sum());
-	}
-
-	@ParameterizedTest(name = "Indexed Arguments, ArgumentsAccessor, and TestInfo: {arguments}")
-	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
-	void indexedArgumentsArgumentsAccessorAndTestInfo(int num1, int num2, ArgumentsAccessor accessor,
-			TestInfo testInfo) {
-
-		assertEquals(1, num1);
-		assertEquals(2, num2);
-		assertEquals(55, IntStream.range(0, accessor.size()).map(i -> accessor.getInteger(i)).sum());
-		assertThat(testInfo.getDisplayName()).contains("Indexed Arguments, ArgumentsAccessor, and TestInfo");
-	}
-
-	@ParameterizedTest(name = "Indexed Arguments, 2 ArgumentsAccessors, and TestInfo: {arguments}")
-	@CsvSource({ "1, 2, 3, 4, 5, 6, 7, 8, 9, 10" })
-	void indexedArgumentsArgumentsAccessorsAndTestInfo(int num1, int num2, ArgumentsAccessor accessor1,
-			ArgumentsAccessor accessor2, TestInfo testInfo) {
-
-		assertEquals(1, num1);
-		assertEquals(2, num2);
-		assertArrayEquals(accessor1.toArray(), accessor2.toArray());
-		assertEquals(55, IntStream.range(0, accessor1.size()).map(i -> accessor1.getInteger(i)).sum());
-		assertThat(testInfo.getDisplayName()).contains("Indexed Arguments, 2 ArgumentsAccessors, and TestInfo");
-	}
-
-	enum Gender {
-		F, M
-	}
-
-	static class Person {
+	public static class Person {
 
 		final String firstName;
 		final String lastName;
@@ -150,22 +229,69 @@ class AggregatorIntegrationTests {
 		}
 	}
 
+	enum Gender {
+		F, M
+	}
+
+	static class Address {
+
+		final String street;
+		final String city;
+		final int zipCode;
+
+		Address(String street, String city, int zipCode) {
+			this.street = street;
+			this.city = city;
+			this.zipCode = zipCode;
+		}
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.PARAMETER)
+	@interface StartIndex {
+		int value();
+	}
+
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.PARAMETER)
 	@AggregateWith(PersonAggregator.class)
-	@interface CsvToPerson {
+	public @interface CsvToPerson {
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.PARAMETER)
+	@AggregateWith(AddressAggregator.class)
+	@interface CsvToAddress {
 	}
 
 	static class PersonAggregator implements ArgumentsAggregator {
 
 		@Override
-		public Object aggregateArguments(ArgumentsAccessor accessor, ParameterContext context) {
+		public Person aggregateArguments(ArgumentsAccessor arguments, ParameterContext context) {
+			int startIndex = context.findAnnotation(StartIndex.class).map(StartIndex::value).orElse(0);
+
 			// @formatter:off
 			return new Person(
-				accessor.getString(0),
-				accessor.getString(1),
-				accessor.get(2, LocalDate.class),
-				accessor.get(3, Gender.class)
+				arguments.getString(startIndex + 0),
+				arguments.getString(startIndex + 1),
+				arguments.get(startIndex + 2, LocalDate.class),
+				arguments.get(startIndex + 3, Gender.class)
+			);
+			// @formatter:on
+		}
+	}
+
+	static class AddressAggregator implements ArgumentsAggregator {
+
+		@Override
+		public Address aggregateArguments(ArgumentsAccessor arguments, ParameterContext context) {
+			int startIndex = context.findAnnotation(StartIndex.class).map(StartIndex::value).orElse(0);
+
+			// @formatter:off
+			return new Address(
+				arguments.getString(startIndex + 0),
+				arguments.getString(startIndex + 1),
+				arguments.getInteger(startIndex + 2)
 			);
 			// @formatter:on
 		}
@@ -177,12 +303,105 @@ class AggregatorIntegrationTests {
 	static class MapAggregator implements ArgumentsAggregator {
 
 		@Override
-		public Object aggregateArguments(ArgumentsAccessor accessor, ParameterContext context) {
+		public Map<String, Integer> aggregateArguments(ArgumentsAccessor arguments, ParameterContext context) {
 			// @formatter:off
-			return IntStream.range(0, accessor.size())
-					.mapToObj(i -> accessor.getString(i))
+			return IntStream.range(0, arguments.size())
+					.mapToObj(i -> arguments.getString(i))
 					.collect(toMap(s -> s, String::length));
 			// @formatter:on
+		}
+	}
+
+	static class NullAggregator implements ArgumentsAggregator {
+		@Override
+		public Object aggregateArguments(ArgumentsAccessor accessor, ParameterContext context) {
+			Preconditions.condition(!context.getParameter().getType().isPrimitive(),
+				() -> "only supports reference types");
+			return null;
+		}
+	}
+
+	static class ErroneousAggregator implements ArgumentsAggregator {
+		@Override
+		public Object aggregateArguments(ArgumentsAccessor accessor, ParameterContext context)
+				throws ArgumentsAggregationException {
+			throw new ArgumentsAggregationException("something went horribly wrong");
+		}
+	}
+
+	static class ErroneousTestCases {
+		@ParameterizedTest
+		@ValueSource(ints = 42)
+		void testWithErroneousAggregator(@AggregateWith(ErroneousAggregator.class) Object ignored) {
+			fail("this should never be called");
+		}
+	}
+
+	@Test
+	@ResourceLock("InstanceCountingConverter.instanceCount")
+	void aggregatorIsInstantiatedOnlyOnce() {
+		InstanceCountingAggregator.instanceCount = 0;
+		CountingTestCase.output.clear();
+
+		execute(selectMethod(CountingTestCase.class, "testWithCountingConverterAggregator",
+			int.class.getName() + "," + Object.class.getName()));
+
+		assertThat(InstanceCountingAggregator.instanceCount).isEqualTo(1);
+		assertThat(CountingTestCase.output)//
+				.containsExactly("noisy test(1, enigma)", "noisy test(2, enigma)", "noisy test(3, enigma)");
+	}
+
+	@Test
+	@ResourceLock("InstanceCountingConverter.instanceCount")
+	void converterIsInstantiatedOnlyOnce() {
+		InstanceCountingConverter.instanceCount = 0;
+		CountingTestCase.output.clear();
+
+		execute(selectMethod(CountingTestCase.class, "testWithCountingConverterAggregator",
+			int.class.getName() + "," + Object.class.getName()));
+
+		assertThat(InstanceCountingConverter.instanceCount).isEqualTo(1);
+		assertThat(CountingTestCase.output)//
+				.containsExactly("noisy test(1, enigma)", "noisy test(2, enigma)", "noisy test(3, enigma)");
+	}
+
+	static class InstanceCountingConverter implements ArgumentConverter {
+		static int instanceCount;
+
+		InstanceCountingConverter() {
+			instanceCount++;
+		}
+
+		@Override
+		public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
+			return source;
+		}
+	}
+
+	static class InstanceCountingAggregator implements ArgumentsAggregator {
+		static int instanceCount;
+
+		InstanceCountingAggregator() {
+			instanceCount++;
+		}
+
+		@Override
+		public Object aggregateArguments(ArgumentsAccessor accessor, ParameterContext context)
+				throws ArgumentsAggregationException {
+			return "enigma";
+		}
+	}
+
+	static class CountingTestCase {
+
+		static final List<String> output = new ArrayList<>();
+
+		@ParameterizedTest
+		@ValueSource(ints = { 1, 2, 3 })
+		void testWithCountingConverterAggregator(@ConvertWith(InstanceCountingConverter.class) int i,
+				@AggregateWith(InstanceCountingAggregator.class) Object o) {
+
+			output.add("noisy test(" + i + ", " + o + ")");
 		}
 	}
 

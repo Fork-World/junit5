@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -32,11 +32,9 @@ import org.apiguardian.api.API;
 @API(status = INTERNAL, since = "1.0")
 public final class ClassLoaderUtils {
 
-	///CLOVER:OFF
 	private ClassLoaderUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	public static ClassLoader getDefaultClassLoader() {
 		try {
@@ -45,8 +43,9 @@ public final class ClassLoaderUtils {
 				return contextClassLoader;
 			}
 		}
-		catch (Throwable ex) {
-			/* ignore */
+		catch (Throwable t) {
+			BlacklistedExceptions.rethrowIfBlacklisted(t);
+			/* otherwise ignore */
 		}
 		return ClassLoader.getSystemClassLoader();
 	}
@@ -75,8 +74,9 @@ public final class ClassLoaderUtils {
 			try {
 				return Optional.ofNullable(loader.getResource(name));
 			}
-			catch (Throwable ignore) {
-				/* ignore */
+			catch (Throwable t) {
+				BlacklistedExceptions.rethrowIfBlacklisted(t);
+				/* otherwise ignore */
 			}
 		}
 		// try protection domain

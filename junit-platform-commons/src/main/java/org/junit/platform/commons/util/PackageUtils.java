@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -41,11 +41,9 @@ import org.apiguardian.api.API;
 @API(status = INTERNAL, since = "1.0")
 public final class PackageUtils {
 
-	///CLOVER:OFF
 	private PackageUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	static final String DEFAULT_PACKAGE_NAME = "";
 
@@ -57,15 +55,16 @@ public final class PackageUtils {
 	/**
 	 * Assert that the supplied package name is valid in terms of Java syntax.
 	 *
-	 * <p>Note: this method does not actually verify if the named package exists in the classpath.
+	 * <p>Note: this method does not actually verify if the named package
+	 * exists in the classpath.
 	 *
 	 * <p>The default package is represented by an empty string ({@code ""}).
 	 *
 	 * @param packageName the package name to validate
-	 * @throws PreconditionViolationException if the supplied package name is
-	 * {@code null}, contains only whitespace, or contains parts that are not
-	 * valid in terms of Java syntax (e.g., containing keywords such as
-	 * {@code void}, {@code import}, etc.)
+	 * @throws org.junit.platform.commons.PreconditionViolationException if the
+	 * supplied package name is {@code null}, contains only whitespace, or
+	 * contains parts that are not valid in terms of Java syntax (e.g.,
+	 * containing keywords such as {@code void}, {@code import}, etc.)
 	 * @see SourceVersion#isName(CharSequence)
 	 */
 	public static void assertPackageNameIsValid(String packageName) {
@@ -92,8 +91,8 @@ public final class PackageUtils {
 	 * (e.g., {@code Package::getImplementationTitle}); never {@code null}
 	 * @return an {@code Optional} containing the attribute value; never
 	 * {@code null} but potentially empty
-	 * @throws PreconditionViolationException if the supplied type or function
-	 * is {@code null}
+	 * @throws org.junit.platform.commons.PreconditionViolationException if the
+	 * supplied type or function is {@code null}
 	 * @see Class#getPackage()
 	 * @see Package#getImplementationTitle()
 	 * @see Package#getImplementationVersion()
@@ -121,8 +120,8 @@ public final class PackageUtils {
 	 * @param name the attribute name as a string
 	 * @return an {@code Optional} containing the attribute value; never
 	 * {@code null} but potentially empty
-	 * @throws PreconditionViolationException if the supplied type is
-	 * {@code null} or the specified name is blank
+	 * @throws org.junit.platform.commons.PreconditionViolationException if the
+	 * supplied type is {@code null} or the specified name is blank
 	 * @see Manifest#getMainAttributes()
 	 */
 	public static Optional<String> getAttribute(Class<?> type, String name) {

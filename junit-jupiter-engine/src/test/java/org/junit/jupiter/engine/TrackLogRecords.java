@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine;
@@ -49,12 +49,12 @@ public @interface TrackLogRecords {
 	class Extension implements BeforeEachCallback, AfterEachCallback, ParameterResolver {
 
 		@Override
-		public void beforeEach(ExtensionContext context) throws Exception {
+		public void beforeEach(ExtensionContext context) {
 			LoggerFactory.addListener(getListener(context));
 		}
 
 		@Override
-		public void afterEach(ExtensionContext context) throws Exception {
+		public void afterEach(ExtensionContext context) {
 			LoggerFactory.removeListener(getListener(context));
 		}
 

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api.extension;
@@ -25,7 +25,10 @@ import org.apiguardian.api.API;
  * <p>Common use cases include swallowing an exception if it's anticipated
  * or rolling back a transaction in certain error scenarios.
  *
- * <p>Implementations must provide a no-args constructor.
+ * <h3>Constructor Requirements</h3>
+ *
+ * <p>Consult the documentation in {@link Extension} for details on
+ * constructor requirements.
  *
  * @since 5.0
  */

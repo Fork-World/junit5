@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api.condition;
@@ -29,6 +29,13 @@ import org.junit.platform.commons.util.StringUtils;
  * {@linkplain #isCurrentVersion current JRE version}.
  *
  * @since 5.1
+ * @see #JAVA_8
+ * @see #JAVA_9
+ * @see #JAVA_10
+ * @see #JAVA_11
+ * @see #JAVA_12
+ * @see #JAVA_13
+ * @see #OTHER
  * @see EnabledOnJre
  * @see DisabledOnJre
  */
@@ -56,8 +63,25 @@ public enum JRE {
 	JAVA_11,
 
 	/**
+	 * Java 12.
+	 *
+	 * @since 5.4
+	 */
+	@API(status = STABLE, since = "5.4")
+	JAVA_12,
+
+	/**
+	 * Java 13.
+	 *
+	 * @since 5.4
+	 */
+	@API(status = STABLE, since = "5.4")
+	JAVA_13,
+
+	/**
 	 * A JRE version other than {@link #JAVA_8}, {@link #JAVA_9},
-	 * {@link #JAVA_10}, or {@link #JAVA_11}.
+	 * {@link #JAVA_10}, {@link #JAVA_11}, {@link #JAVA_12}, or
+	 * {@link #JAVA_13}.
 	 */
 	OTHER;
 
@@ -93,6 +117,10 @@ public enum JRE {
 					return JAVA_10;
 				case 11:
 					return JAVA_11;
+				case 12:
+					return JAVA_12;
+				case 13:
+					return JAVA_13;
 				default:
 					return OTHER;
 			}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.vintage.engine.descriptor;
@@ -16,6 +16,7 @@ import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.junit.platform.commons.util.CollectionUtils.getOnlyElement;
 import static org.junit.platform.commons.util.FunctionUtils.where;
 import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
+import static org.junit.platform.commons.util.StringUtils.isNotBlank;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -48,7 +49,7 @@ public class VintageTestDescriptor extends AbstractTestDescriptor {
 	public static final String SEGMENT_TYPE_TEST = "test";
 	public static final String SEGMENT_TYPE_DYNAMIC = "dynamic";
 
-	private final Description description;
+	protected Description description;
 
 	public VintageTestDescriptor(UniqueId uniqueId, Description description) {
 		this(uniqueId, description, generateDisplayName(description), toTestSource(description));
@@ -65,6 +66,18 @@ public class VintageTestDescriptor extends AbstractTestDescriptor {
 
 	public Description getDescription() {
 		return description;
+	}
+
+	@Override
+	public String getLegacyReportingName() {
+		String methodName = description.getMethodName();
+		if (methodName == null) {
+			String className = description.getClassName();
+			if (isNotBlank(className)) {
+				return className;
+			}
+		}
+		return super.getLegacyReportingName();
 	}
 
 	@Override
@@ -152,7 +165,7 @@ public class VintageTestDescriptor extends AbstractTestDescriptor {
 		}
 		else {
 			List<Method> methods = findMethods(testClass, where(Method::getName, isEqual(methodName)));
-			return (methods.size() == 1) ? MethodSource.from(getOnlyElement(methods)) : null;
+			return (methods.size() == 1) ? MethodSource.from(testClass, getOnlyElement(methods)) : null;
 		}
 	}
 

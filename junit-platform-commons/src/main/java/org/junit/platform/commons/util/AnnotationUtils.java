@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -27,8 +27,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,13 +56,12 @@ import org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode;
 @API(status = INTERNAL, since = "1.0")
 public final class AnnotationUtils {
 
-	///CLOVER:OFF
 	private AnnotationUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
-	private static final Map<AnnotationCacheKey, Annotation> annotationCache = new ConcurrentHashMap<>(256);
+	private static final ConcurrentHashMap<Class<? extends Annotation>, Boolean> repeatableAnnotationContainerCache = //
+		new ConcurrentHashMap<>(16);
 
 	/**
 	 * Determine if an annotation of {@code annotationType} is either
@@ -72,6 +69,7 @@ public final class AnnotationUtils {
 	 * {@code element}.
 	 *
 	 * @see #findAnnotation(Optional, Class)
+	 * @see org.junit.platform.commons.support.AnnotationSupport#isAnnotated(Optional, Class)
 	 */
 	public static boolean isAnnotated(Optional<? extends AnnotatedElement> element,
 			Class<? extends Annotation> annotationType) {
@@ -84,6 +82,10 @@ public final class AnnotationUtils {
 	 * <em>present</em> or <em>meta-present</em> on the supplied
 	 * {@code element}.
 	 *
+	 * @param element the element on which to search for the annotation; may be
+	 * {@code null}
+	 * @param annotationType the annotation type to search for; never {@code null}
+	 * @return {@code true} if the annotation is present or meta-present
 	 * @see #findAnnotation(AnnotatedElement, Class)
 	 * @see org.junit.platform.commons.support.AnnotationSupport#isAnnotated(AnnotatedElement, Class)
 	 */
@@ -101,20 +103,18 @@ public final class AnnotationUtils {
 			return Optional.empty();
 		}
 
-		boolean inherited = annotationType.isAnnotationPresent(Inherited.class);
-
-		return findAnnotation(element.get(), annotationType, inherited, new HashSet<>());
+		return findAnnotation(element.get(), annotationType);
 	}
 
 	/**
 	 * @see org.junit.platform.commons.support.AnnotationSupport#findAnnotation(AnnotatedElement, Class)
 	 */
 	public static <A extends Annotation> Optional<A> findAnnotation(AnnotatedElement element, Class<A> annotationType) {
+		Preconditions.notNull(annotationType, "annotationType must not be null");
 		boolean inherited = annotationType.isAnnotationPresent(Inherited.class);
 		return findAnnotation(element, annotationType, inherited, new HashSet<>());
 	}
 
-	@SuppressWarnings("unchecked")
 	private static <A extends Annotation> Optional<A> findAnnotation(AnnotatedElement element, Class<A> annotationType,
 			boolean inherited, Set<Annotation> visited) {
 
@@ -124,22 +124,14 @@ public final class AnnotationUtils {
 			return Optional.empty();
 		}
 
-		// Cached?
-		AnnotationCacheKey key = new AnnotationCacheKey(element, annotationType);
-		A annotation = (A) annotationCache.get(key);
-		if (annotation != null) {
-			return Optional.of(annotation);
-		}
-
 		// Directly present?
-		annotation = element.getDeclaredAnnotation(annotationType);
+		A annotation = element.getDeclaredAnnotation(annotationType);
 		if (annotation != null) {
-			annotationCache.put(key, annotation);
 			return Optional.of(annotation);
 		}
 
 		// Meta-present on directly present annotations?
-		Optional<A> directMetaAnnotation = findMetaAnnotation(annotationType, element.getDeclaredAnnotations(), key,
+		Optional<A> directMetaAnnotation = findMetaAnnotation(annotationType, element.getDeclaredAnnotations(),
 			inherited, visited);
 		if (directMetaAnnotation.isPresent()) {
 			return directMetaAnnotation;
@@ -172,11 +164,11 @@ public final class AnnotationUtils {
 		}
 
 		// Meta-present on indirectly present annotations?
-		return findMetaAnnotation(annotationType, element.getAnnotations(), key, inherited, visited);
+		return findMetaAnnotation(annotationType, element.getAnnotations(), inherited, visited);
 	}
 
 	private static <A extends Annotation> Optional<A> findMetaAnnotation(Class<A> annotationType,
-			Annotation[] candidates, AnnotationCacheKey key, boolean inherited, Set<Annotation> visited) {
+			Annotation[] candidates, boolean inherited, Set<Annotation> visited) {
 
 		for (Annotation candidateAnnotation : candidates) {
 			Class<? extends Annotation> candidateAnnotationType = candidateAnnotation.annotationType();
@@ -184,12 +176,25 @@ public final class AnnotationUtils {
 				Optional<A> metaAnnotation = findAnnotation(candidateAnnotationType, annotationType, inherited,
 					visited);
 				if (metaAnnotation.isPresent()) {
-					annotationCache.put(key, metaAnnotation.get());
 					return metaAnnotation;
 				}
 			}
 		}
 		return Optional.empty();
+	}
+
+	/**
+	 * @since 1.5
+	 * @see org.junit.platform.commons.support.AnnotationSupport#findRepeatableAnnotations(Optional, Class)
+	 */
+	public static <A extends Annotation> List<A> findRepeatableAnnotations(Optional<? extends AnnotatedElement> element,
+			Class<A> annotationType) {
+
+		if (element == null || !element.isPresent()) {
+			return Collections.emptyList();
+		}
+
+		return findRepeatableAnnotations(element.get(), annotationType);
 	}
 
 	/**
@@ -265,13 +270,23 @@ public final class AnnotationUtils {
 					// Note: it's not a legitimate containing annotation type if it doesn't declare
 					// a 'value' attribute that returns an array of the contained annotation type.
 					// See https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.6.3
-					Method method = ReflectionUtils.getMethod(containerType, "value").orElseThrow(
-						() -> new JUnitException(String.format(
+					Method method = ReflectionUtils.tryToGetMethod(containerType, "value").getOrThrow(
+						cause -> new JUnitException(String.format(
 							"Container annotation type '%s' must declare a 'value' attribute of type %s[].",
-							containerType, annotationType)));
+							containerType, annotationType), cause));
 
 					Annotation[] containedAnnotations = (Annotation[]) ReflectionUtils.invokeMethod(method, candidate);
 					found.addAll((Collection<? extends A>) asList(containedAnnotations));
+				}
+				// Nested container annotation?
+				else if (isRepeatableAnnotationContainer(candidateAnnotationType)) {
+					Method method = ReflectionUtils.tryToGetMethod(candidateAnnotationType, "value").toOptional().get();
+					Annotation[] containedAnnotations = (Annotation[]) ReflectionUtils.invokeMethod(method, candidate);
+
+					for (Annotation containedAnnotation : containedAnnotations) {
+						findRepeatableAnnotations(containedAnnotation.getClass(), annotationType, containerType,
+							inherited, found, visited);
+					}
 				}
 				// Otherwise search recursively through the meta-annotation hierarchy...
 				else {
@@ -280,6 +295,26 @@ public final class AnnotationUtils {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Determine if the supplied annotation type is a container for a repeatable
+	 * annotation.
+	 *
+	 * @since 1.5
+	 */
+	private static boolean isRepeatableAnnotationContainer(Class<? extends Annotation> candidateContainerType) {
+		return repeatableAnnotationContainerCache.computeIfAbsent(candidateContainerType, candidate -> {
+			// @formatter:off
+			Repeatable repeatable = Arrays.stream(candidate.getMethods())
+					.filter(attribute -> attribute.getName().equals("value") && attribute.getReturnType().isArray())
+					.findFirst()
+					.map(attribute -> attribute.getReturnType().getComponentType().getAnnotation(Repeatable.class))
+					.orElse(null);
+			// @formatter:on
+
+			return repeatable != null && candidate.equals(repeatable.value());
+		});
 	}
 
 	/**
@@ -350,33 +385,6 @@ public final class AnnotationUtils {
 
 	private static boolean isInJavaLangAnnotationPackage(Class<? extends Annotation> annotationType) {
 		return (annotationType != null && annotationType.getName().startsWith("java.lang.annotation"));
-	}
-
-	private static class AnnotationCacheKey {
-
-		private final AnnotatedElement element;
-		private final Class<? extends Annotation> annotationType;
-
-		AnnotationCacheKey(AnnotatedElement element, Class<? extends Annotation> annotationType) {
-			this.element = element;
-			this.annotationType = annotationType;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof AnnotationCacheKey) {
-				AnnotationCacheKey that = (AnnotationCacheKey) obj;
-				return Objects.equals(this.element, that.element)
-						&& Objects.equals(this.annotationType, that.annotationType);
-			}
-			return false;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(this.element, this.annotationType);
-		}
-
 	}
 
 }

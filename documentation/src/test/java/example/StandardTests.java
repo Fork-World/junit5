@@ -1,17 +1,18 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package example;
 
 // tag::user_guide[]
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +47,12 @@ class StandardTests {
 	@Disabled("for demonstration purposes")
 	void skippedTest() {
 		// not executed
+	}
+
+	@Test
+	void abortedTest() {
+		assumeTrue("abc".contains("Z"));
+		fail("test should have been aborted");
 	}
 
 	@AfterEach

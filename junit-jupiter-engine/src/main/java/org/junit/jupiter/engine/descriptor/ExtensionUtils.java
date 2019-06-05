@@ -1,33 +1,37 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.descriptor;
 
 import static java.util.stream.Collectors.toList;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotatedFields;
+import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 import static org.junit.platform.commons.util.AnnotationUtils.findRepeatableAnnotations;
-import static org.junit.platform.commons.util.ReflectionUtils.isPrivate;
-import static org.junit.platform.commons.util.ReflectionUtils.isStatic;
-import static org.junit.platform.commons.util.ReflectionUtils.readFieldValue;
+import static org.junit.platform.commons.util.ReflectionUtils.isNotPrivate;
+import static org.junit.platform.commons.util.ReflectionUtils.tryToReadFieldValue;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.engine.extension.ExtensionRegistry;
 import org.junit.platform.commons.util.Preconditions;
+import org.junit.platform.commons.util.ReflectionUtils;
 
 /**
  * Collection of utilities for working with extensions and the extension registry.
@@ -39,14 +43,9 @@ import org.junit.platform.commons.util.Preconditions;
  */
 final class ExtensionUtils {
 
-	private static final Predicate<Field> isStaticExtension = new IsStaticExtensionField();
-	private static final Predicate<Field> isNonStaticExtension = new IsNonStaticExtensionField();
-
-	///CLOVER:OFF
 	private ExtensionUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	/**
 	 * Populate a new {@link ExtensionRegistry} from extension types declared via
@@ -63,8 +62,8 @@ final class ExtensionUtils {
 	static ExtensionRegistry populateNewExtensionRegistryFromExtendWithAnnotation(ExtensionRegistry parentRegistry,
 			AnnotatedElement annotatedElement) {
 
-		Preconditions.notNull(annotatedElement, "AnnotatedElement must not be null");
 		Preconditions.notNull(parentRegistry, "Parent ExtensionRegistry must not be null");
+		Preconditions.notNull(annotatedElement, "AnnotatedElement must not be null");
 
 		// @formatter:off
 		List<Class<? extends Extension>> extensionTypes = findRepeatableAnnotations(annotatedElement, ExtendWith.class).stream()
@@ -80,59 +79,51 @@ final class ExtensionUtils {
 	 * Register extensions in the supplied registry from fields in the supplied
 	 * class that are annotated with {@link RegisterExtension @RegisterExtension}.
 	 *
+	 * <p>The extensions will be sorted according to {@link Order @Order} semantics
+	 * prior to registration.
+	 *
 	 * @param registry the registry in which to register the extensions; never {@code null}
 	 * @param clazz the class or interface in which to find the fields; never {@code null}
 	 * @param instance the instance of the supplied class; may be {@code null}
 	 * when searching for {@code static} fields in the class
 	 */
 	static void registerExtensionsFromFields(ExtensionRegistry registry, Class<?> clazz, Object instance) {
-		Preconditions.notNull(clazz, "Class must not be null");
 		Preconditions.notNull(registry, "ExtensionRegistry must not be null");
+		Preconditions.notNull(clazz, "Class must not be null");
 
-		Predicate<Field> predicate = (instance == null) ? isStaticExtension : isNonStaticExtension;
+		Predicate<Field> predicate = (instance == null ? ReflectionUtils::isStatic : ReflectionUtils::isNotStatic);
 
-		findAnnotatedFields(clazz, RegisterExtension.class, predicate).forEach(field -> {
-			readFieldValue(field, instance).ifPresent(value -> {
-				Extension extension = (Extension) value;
-				registry.registerExtension(extension, field);
+		// Ensure that the list is modifiable, since findAnnotatedFields() returns an unmodifiable list.
+		List<Field> fields = new ArrayList<>(findAnnotatedFields(clazz, RegisterExtension.class, predicate));
+
+		// Sort fields based on @Order.
+		fields.sort(orderComparator);
+
+		fields.forEach(field -> {
+			Preconditions.condition(isNotPrivate(field),
+				() -> String.format(
+					"Failed to register extension via @RegisterExtension field [%s]: field must not be private.",
+					field));
+			tryToReadFieldValue(field, instance).ifSuccess(value -> {
+				Preconditions.condition(value instanceof Extension, () -> String.format(
+					"Failed to register extension via @RegisterExtension field [%s]: field value's type [%s] must implement an [%s] API.",
+					field, (value != null ? value.getClass().getName() : null), Extension.class.getName()));
+				registry.registerExtension((Extension) value, field);
 			});
 		});
 	}
 
-	static class IsNonStaticExtensionField implements Predicate<Field> {
+	/**
+	 * @since 5.4
+	 */
+	private static final Comparator<Field> orderComparator = //
+		(field1, field2) -> Integer.compare(getOrder(field1), getOrder(field2));
 
-		@Override
-		public boolean test(Field field) {
-			// Please do not collapse the following into a single statement.
-			if (isStatic(field)) {
-				return false;
-			}
-			if (isPrivate(field)) {
-				return false;
-			}
-			if (!Extension.class.isAssignableFrom(field.getType())) {
-				return false;
-			}
-			return true;
-		}
-	}
-
-	static class IsStaticExtensionField implements Predicate<Field> {
-
-		@Override
-		public boolean test(Field field) {
-			// Please do not collapse the following into a single statement.
-			if (!isStatic(field)) {
-				return false;
-			}
-			if (isPrivate(field)) {
-				return false;
-			}
-			if (!Extension.class.isAssignableFrom(field.getType())) {
-				return false;
-			}
-			return true;
-		}
+	/**
+	 * @since 5.4
+	 */
+	private static int getOrder(Field field) {
+		return findAnnotation(field, Order.class).map(Order::value).orElse(Integer.MAX_VALUE);
 	}
 
 }

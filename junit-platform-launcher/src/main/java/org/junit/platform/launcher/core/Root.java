@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.launcher.core;
@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.Filter;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
@@ -30,6 +31,15 @@ import org.junit.platform.launcher.LauncherDiscoveryRequest;
 class Root {
 
 	private final Map<TestEngine, TestDescriptor> testEngineDescriptors = new LinkedHashMap<>(4);
+	private final ConfigurationParameters configurationParameters;
+
+	Root(ConfigurationParameters configurationParameters) {
+		this.configurationParameters = configurationParameters;
+	}
+
+	public ConfigurationParameters getConfigurationParameters() {
+		return configurationParameters;
+	}
 
 	/**
 	 * Add an {@code engine}'s root {@link TestDescriptor}.

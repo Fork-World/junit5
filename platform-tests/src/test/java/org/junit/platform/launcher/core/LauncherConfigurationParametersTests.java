@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.launcher.core;
@@ -24,7 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstancePostProcessor;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
@@ -127,6 +128,22 @@ class LauncherConfigurationParametersTests {
 		SummaryGeneratingListener summary = new SummaryGeneratingListener();
 		LauncherFactory.create().execute(request, summary);
 		assertEquals(0, summary.getSummary().getTestsFailedCount());
+	}
+
+	@Test
+	void getWithSuccessfulTransformer() {
+		ConfigurationParameters configParams = fromMap(singletonMap(KEY, "42"));
+		assertThat(configParams.get(KEY, Integer::valueOf)).contains(42);
+	}
+
+	@Test
+	void getWithErroneousTransformer() {
+		ConfigurationParameters configParams = fromMap(singletonMap(KEY, "42"));
+		JUnitException exception = assertThrows(JUnitException.class, () -> configParams.get(KEY, input -> {
+			throw new RuntimeException("foo");
+		}));
+		assertThat(exception).hasMessageContaining(
+			"Failed to transform configuration parameter with key '" + KEY + "' and initial value '42'");
 	}
 
 	private static LauncherConfigurationParameters fromMap(Map<String, String> map) {

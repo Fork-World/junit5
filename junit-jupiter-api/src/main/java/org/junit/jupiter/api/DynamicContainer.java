@@ -1,17 +1,18 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
 
-import static org.apiguardian.api.API.Status.EXPERIMENTAL;
+import static org.apiguardian.api.API.Status.MAINTAINED;
 
+import java.net.URI;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -33,7 +34,7 @@ import org.junit.platform.commons.util.Preconditions;
  * @see TestFactory
  * @see DynamicTest
  */
-@API(status = EXPERIMENTAL, since = "5.0")
+@API(status = MAINTAINED, since = "5.3")
 public class DynamicContainer extends DynamicNode {
 
 	/**
@@ -49,7 +50,7 @@ public class DynamicContainer extends DynamicNode {
 	 * @see #dynamicContainer(String, Stream)
 	 */
 	public static DynamicContainer dynamicContainer(String displayName, Iterable<? extends DynamicNode> dynamicNodes) {
-		return new DynamicContainer(displayName, StreamSupport.stream(dynamicNodes.spliterator(), false));
+		return dynamicContainer(displayName, null, StreamSupport.stream(dynamicNodes.spliterator(), false));
 	}
 
 	/**
@@ -65,13 +66,34 @@ public class DynamicContainer extends DynamicNode {
 	 * @see #dynamicContainer(String, Iterable)
 	 */
 	public static DynamicContainer dynamicContainer(String displayName, Stream<? extends DynamicNode> dynamicNodes) {
-		return new DynamicContainer(displayName, dynamicNodes);
+		return dynamicContainer(displayName, null, dynamicNodes);
+	}
+
+	/**
+	 * Factory for creating a new {@code DynamicContainer} for the supplied display
+	 * name, custom test source {@link URI}, and stream of dynamic nodes.
+	 *
+	 * <p>The stream of dynamic nodes must not contain {@code null} elements.
+	 *
+	 * @param displayName the display name for the dynamic container; never
+	 * {@code null} or blank
+	 * @param testSourceUri a custom test source URI for the dynamic container;
+	 * may be {@code null} if the framework should generate the test source based
+	 * on the {@code @TestFactory} method
+	 * @param dynamicNodes stream of dynamic nodes to execute; never {@code null}
+	 * @since 5.3
+	 * @see #dynamicContainer(String, Iterable)
+	 */
+	public static DynamicContainer dynamicContainer(String displayName, URI testSourceUri,
+			Stream<? extends DynamicNode> dynamicNodes) {
+
+		return new DynamicContainer(displayName, testSourceUri, dynamicNodes);
 	}
 
 	private final Stream<? extends DynamicNode> children;
 
-	private DynamicContainer(String displayName, Stream<? extends DynamicNode> children) {
-		super(displayName);
+	private DynamicContainer(String displayName, URI testSourceUri, Stream<? extends DynamicNode> children) {
+		super(displayName, testSourceUri);
 		Preconditions.notNull(children, "children must not be null");
 		this.children = children;
 	}

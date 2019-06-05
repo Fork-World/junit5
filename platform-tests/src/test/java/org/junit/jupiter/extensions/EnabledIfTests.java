@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.extensions;
@@ -32,6 +32,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
  *
  * @since 1.1
  */
+@Deprecated
 @EnabledIf("true")
 class EnabledIfTests {
 
@@ -125,9 +126,9 @@ class EnabledIfTests {
 	}
 
 	@Test
-	@EnabledIf(engine = "groovy", value = { "System.properties['jsr'] = '233'", "'233' == System.properties['jsr']" })
-	void groovy() {
-		assertEquals("233", System.getProperty("jsr"));
+	@EnabledIf(engine = "java", value = { "System.getProperties().put(0xCAFE, 233);", "return true;" })
+	void java() {
+		assertEquals(233, System.getProperties().get(0xCAFE));
 	}
 
 	@Test

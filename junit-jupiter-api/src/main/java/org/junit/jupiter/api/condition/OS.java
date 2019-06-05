@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api.condition;
@@ -28,11 +28,25 @@ import org.junit.platform.commons.util.StringUtils;
  * {@linkplain #isCurrentOs current operating system}.
  *
  * @since 5.1
+ * @see #AIX
+ * @see #LINUX
+ * @see #MAC
+ * @see #SOLARIS
+ * @see #WINDOWS
+ * @see #OTHER
  * @see EnabledOnOs
  * @see DisabledOnOs
  */
 @API(status = STABLE, since = "5.1")
 public enum OS {
+
+	/**
+	 * IBM AIX operating system.
+	 *
+	 * @since 5.3
+	 */
+	@API(status = STABLE, since = "5.3")
+	AIX,
 
 	/**
 	 * Linux-based operating system.
@@ -55,7 +69,7 @@ public enum OS {
 	WINDOWS,
 
 	/**
-	 * An operating system other than {@link #LINUX}, {@link #MAC},
+	 * An operating system other than {@link #AIX}, {@link #LINUX}, {@link #MAC},
 	 * {@link #SOLARIS}, or {@link #WINDOWS}.
 	 */
 	OTHER;
@@ -77,13 +91,16 @@ public enum OS {
 
 		osName = osName.toLowerCase(Locale.ENGLISH);
 
+		if (osName.contains("aix")) {
+			return AIX;
+		}
 		if (osName.contains("linux")) {
 			return LINUX;
 		}
 		if (osName.contains("mac")) {
 			return MAC;
 		}
-		if (osName.contains("solaris")) {
+		if (osName.contains("sunos") || osName.contains("solaris")) {
 			return SOLARIS;
 		}
 		if (osName.contains("win")) {

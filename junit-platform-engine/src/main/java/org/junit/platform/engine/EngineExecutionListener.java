@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.engine;
@@ -109,15 +109,19 @@ public interface EngineExecutionListener {
 	void executionFinished(TestDescriptor testDescriptor, TestExecutionResult testExecutionResult);
 
 	/**
-	 * Can be called for any {@code testDescriptor} in order to publish additional information, e.g.:
+	 * Can be called for any {@link TestDescriptor} in order to publish additional
+	 * information to the reporting infrastructure &mdash; for example:
+	 *
 	 * <ul>
 	 *     <li>Output that would otherwise go to {@code System.out}</li>
 	 *     <li>Information about test context or test data</li>
 	 * </ul>
 	 *
-	 * <p>The current lifecycle state of {@code testDescriptor} is not relevant;
-	 * that means that reporting events can occur at all times.
-	 * @param testDescriptor the descriptor of the test or container to which the entry belongs
+	 * <p>The current lifecycle state of the supplied {@code TestDescriptor} is
+	 * not relevant: reporting events can occur at any time.
+	 *
+	 * @param testDescriptor the descriptor of the test or container to which
+	 * the reporting entry belongs
 	 * @param entry a {@code ReportEntry} instance to be published
 	 */
 	void reportingEntryPublished(TestDescriptor testDescriptor, ReportEntry entry);

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -30,6 +30,7 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import org.apiguardian.api.API;
+import org.junit.platform.commons.PreconditionViolationException;
 
 /**
  * Collection of utilities for working with {@link Collection Collections}.
@@ -45,11 +46,9 @@ import org.apiguardian.api.API;
 @API(status = INTERNAL, since = "1.0")
 public final class CollectionUtils {
 
-	///CLOVER:OFF
 	private CollectionUtils() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	/**
 	 * Read the only element of a collection of size 1.
@@ -101,6 +100,7 @@ public final class CollectionUtils {
 	 * <li>{@link Iterable}</li>
 	 * <li>{@link Iterator}</li>
 	 * <li>{@link Object} array</li>
+	 * <li>primitive array</li>
 	 * </ul>
 	 *
 	 * @param object the object to convert into a stream; never {@code null}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.support;
@@ -32,11 +32,9 @@ import org.junit.platform.commons.util.AnnotationUtils;
 @API(status = INTERNAL, since = "5.0")
 public final class AnnotationConsumerInitializer {
 
-	///CLOVER:OFF
 	private AnnotationConsumerInitializer() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	// @formatter:off
 	private static final Predicate<Method> isAnnotationConsumerAcceptMethod = method ->

@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.launcher.core;
@@ -31,7 +31,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.commons.util.PreconditionViolationException;
+import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.DiscoveryFilter;
 import org.junit.platform.engine.TestEngine;
@@ -41,11 +41,10 @@ import org.junit.platform.engine.discovery.MethodSelector;
 import org.junit.platform.engine.discovery.ModuleSelector;
 import org.junit.platform.engine.discovery.PackageSelector;
 import org.junit.platform.engine.discovery.UniqueIdSelector;
-import org.junit.platform.engine.test.TestEngineStub;
+import org.junit.platform.fakes.TestEngineStub;
 import org.junit.platform.launcher.DiscoveryFilterStub;
 import org.junit.platform.launcher.EngineFilter;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
-import org.junit.platform.launcher.PostDiscoveryFilter;
 import org.junit.platform.launcher.PostDiscoveryFilterStub;
 
 /**
@@ -199,36 +198,31 @@ class LauncherDiscoveryRequestBuilderTests {
 		}
 
 		@Test
-		@SuppressWarnings("rawtypes")
 		void discoveryFiltersAreStoredInDiscoveryRequest() {
+			var filter1 = new DiscoveryFilterStub<>("filter1");
+			var filter2 = new DiscoveryFilterStub<>("filter2");
 			// @formatter:off
 			LauncherDiscoveryRequest discoveryRequest = request()
-					.filters(
-							new DiscoveryFilterStub("filter1"),
-							new DiscoveryFilterStub("filter2")
-					).build();
+					.filters(filter1, filter2)
+					.build();
 			// @formatter:on
 
-			List<String> filterStrings = discoveryRequest.getFiltersByType(DiscoveryFilter.class).stream().map(
-				DiscoveryFilter::toString).collect(toList());
-			assertThat(filterStrings).hasSize(2);
-			assertThat(filterStrings).contains("filter1", "filter2");
+			var filters = discoveryRequest.getFiltersByType(DiscoveryFilter.class);
+			assertThat(filters).containsOnly(filter1, filter2);
 		}
 
 		@Test
 		void postDiscoveryFiltersAreStoredInDiscoveryRequest() {
+			var postFilter1 = new PostDiscoveryFilterStub("postFilter1");
+			var postFilter2 = new PostDiscoveryFilterStub("postFilter2");
 			// @formatter:off
 			LauncherDiscoveryRequest discoveryRequest = request()
-					.filters(
-							new PostDiscoveryFilterStub("postFilter1"),
-							new PostDiscoveryFilterStub("postFilter2")
-					).build();
+					.filters(postFilter1, postFilter2)
+					.build();
 			// @formatter:on
 
-			List<String> filterStrings = discoveryRequest.getPostDiscoveryFilters().stream().map(
-				PostDiscoveryFilter::toString).collect(toList());
-			assertThat(filterStrings).hasSize(2);
-			assertThat(filterStrings).contains("postFilter1", "postFilter2");
+			var filters = discoveryRequest.getPostDiscoveryFilters();
+			assertThat(filters).containsOnly(postFilter1, postFilter2);
 		}
 
 		@Test
@@ -305,7 +299,7 @@ class LauncherDiscoveryRequestBuilderTests {
 		}
 
 		@Test
-		void multipleConfigurationParametersAddedByMap_areStoredInDiscoveryRequest() throws Exception {
+		void multipleConfigurationParametersAddedByMap_areStoredInDiscoveryRequest() {
 			Map<String, String> configurationParams = new HashMap<>();
 			configurationParams.put("key1", "value1");
 			configurationParams.put("key2", "value2");

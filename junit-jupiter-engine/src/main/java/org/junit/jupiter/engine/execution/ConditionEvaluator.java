@@ -1,34 +1,27 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.engine.execution;
 
 import static java.lang.String.format;
 import static org.apiguardian.api.API.Status.INTERNAL;
-import static org.junit.jupiter.engine.Constants.DEACTIVATE_ALL_CONDITIONS_PATTERN;
-import static org.junit.jupiter.engine.Constants.DEACTIVATE_CONDITIONS_PATTERN_PROPERTY_NAME;
-
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apiguardian.api.API;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.engine.Constants;
+import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.jupiter.engine.extension.ExtensionRegistry;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
 import org.junit.platform.commons.util.StringUtils;
-import org.junit.platform.engine.ConfigurationParameters;
 
 /**
  * {@code ConditionEvaluator} evaluates {@link ExecutionCondition} extensions.
@@ -44,10 +37,6 @@ public class ConditionEvaluator {
 	private static final ConditionEvaluationResult ENABLED = ConditionEvaluationResult.enabled(
 		"No 'disabled' conditions encountered");
 
-	private static final Predicate<Object> alwaysActivated = condition -> true;
-
-	private static final Predicate<Object> alwaysDeactivated = condition -> false;
-
 	/**
 	 * Evaluate all {@link ExecutionCondition} extensions registered for the
 	 * supplied {@link ExtensionContext}.
@@ -57,12 +46,12 @@ public class ConditionEvaluator {
 	 * or a default <em>enabled</em> {@code ConditionEvaluationResult} if no
 	 * disabled conditions are encountered
 	 */
-	public ConditionEvaluationResult evaluate(ExtensionRegistry extensionRegistry,
-			ConfigurationParameters configurationParameters, ExtensionContext context) {
+	public ConditionEvaluationResult evaluate(ExtensionRegistry extensionRegistry, JupiterConfiguration configuration,
+			ExtensionContext context) {
 
 		// @formatter:off
 		return extensionRegistry.stream(ExecutionCondition.class)
-				.filter(conditionIsActivated(configurationParameters))
+				.filter(configuration.getExecutionConditionFilter())
 				.map(condition -> evaluate(condition, context))
 				.filter(ConditionEvaluationResult::isDisabled)
 				.findFirst()
@@ -73,7 +62,7 @@ public class ConditionEvaluator {
 	private ConditionEvaluationResult evaluate(ExecutionCondition condition, ExtensionContext context) {
 		try {
 			ConditionEvaluationResult result = condition.evaluateExecutionCondition(context);
-			logResult(condition.getClass(), result);
+			logResult(condition.getClass(), result, context);
 			return result;
 		}
 		catch (Exception ex) {
@@ -81,52 +70,15 @@ public class ConditionEvaluator {
 		}
 	}
 
-	private void logResult(Class<?> conditionType, ConditionEvaluationResult result) {
-		logger.trace(() -> format("Evaluation of condition [%s] resulted in: %s", conditionType.getName(), result));
+	private void logResult(Class<?> conditionType, ConditionEvaluationResult result, ExtensionContext context) {
+		logger.trace(() -> format("Evaluation of condition [%s] on [%s] resulted in: %s", conditionType.getName(),
+			context.getElement().get(), result));
 	}
 
 	private ConditionEvaluationException evaluationException(Class<?> conditionType, Exception ex) {
 		String cause = StringUtils.isNotBlank(ex.getMessage()) ? ": " + ex.getMessage() : "";
 		return new ConditionEvaluationException(
 			format("Failed to evaluate condition [%s]%s", conditionType.getName(), cause), ex);
-	}
-
-	private Predicate<Object> conditionIsActivated(ConfigurationParameters configurationParameters) {
-		String patternString = getDeactivatePatternString(configurationParameters);
-		if (patternString != null) {
-			if (DEACTIVATE_ALL_CONDITIONS_PATTERN.equals(patternString)) {
-				return alwaysDeactivated;
-			}
-			Pattern pattern = Pattern.compile(convertToRegEx(patternString));
-			return condition -> !pattern.matcher(condition.getClass().getName()).matches();
-		}
-		return alwaysActivated;
-	}
-
-	private String getDeactivatePatternString(ConfigurationParameters configurationParameters) {
-		// @formatter:off
-		return configurationParameters.get(DEACTIVATE_CONDITIONS_PATTERN_PROPERTY_NAME)
-				.filter(StringUtils::isNotBlank)
-				.map(String::trim)
-				.orElse(null);
-		// @formatter:on
-	}
-
-	/**
-	 * See {@link Constants#DEACTIVATE_CONDITIONS_PATTERN_PROPERTY_NAME} for
-	 * details on the pattern matching syntax.
-	 */
-	private String convertToRegEx(String pattern) {
-		pattern = Matcher.quoteReplacement(pattern);
-
-		// Match "." against "." and "$" since users may declare a "." instead of a
-		// "$" as the separator between classes and nested classes.
-		pattern = pattern.replace(".", "[.$]");
-
-		// Convert our "*" wildcard into a proper RegEx pattern.
-		pattern = pattern.replace("*", ".+");
-
-		return pattern;
 	}
 
 }

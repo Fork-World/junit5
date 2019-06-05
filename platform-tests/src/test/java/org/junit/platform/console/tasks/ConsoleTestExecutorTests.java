@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.console.tasks;
@@ -100,7 +100,7 @@ class ConsoleTestExecutorTests {
 		dummyTestEngine.addTest("succeedingTest", SUCCEEDING_TEST);
 
 		ConsoleTestExecutor task = new ConsoleTestExecutor(options, () -> createLauncher(dummyTestEngine));
-		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()));
+		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()), options);
 
 		assertThat(exitCode).isEqualTo(0);
 	}
@@ -110,7 +110,7 @@ class ConsoleTestExecutorTests {
 		dummyTestEngine.addTest("failingTest", FAILING_BLOCK);
 
 		ConsoleTestExecutor task = new ConsoleTestExecutor(options, () -> createLauncher(dummyTestEngine));
-		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()));
+		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()), options);
 
 		assertThat(exitCode).isEqualTo(1);
 	}
@@ -120,9 +120,33 @@ class ConsoleTestExecutorTests {
 		dummyTestEngine.addContainer("failingContainer", FAILING_BLOCK);
 
 		ConsoleTestExecutor task = new ConsoleTestExecutor(options, () -> createLauncher(dummyTestEngine));
-		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()));
+		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()), options);
 
 		assertThat(exitCode).isEqualTo(1);
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@Test
+	void hasStatusCode2ForNoTestsAndHasOptionFailIfNoTestsFound() throws Exception {
+		options.setFailIfNoTests(true);
+
+		ConsoleTestExecutor task = new ConsoleTestExecutor(options, () -> createLauncher(dummyTestEngine));
+		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()), options);
+
+		assertThat(exitCode).isEqualTo(2);
+	}
+
+	/**
+	 * @since 1.3
+	 */
+	@Test
+	void hasStatusCode0ForNoTestsAndNotFailIfNoTestsFound() throws Exception {
+		ConsoleTestExecutor task = new ConsoleTestExecutor(options, () -> createLauncher(dummyTestEngine));
+		int exitCode = ConsoleLauncherExecutionResult.computeExitCode(task.execute(dummyWriter()), options);
+
+		assertThat(exitCode).isEqualTo(0);
 	}
 
 	@Test

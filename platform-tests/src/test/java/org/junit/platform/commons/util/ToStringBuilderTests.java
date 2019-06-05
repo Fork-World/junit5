@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.commons.util;
@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.PreconditionViolationException;
 
 /**
  * Unit tests for {@link ToStringBuilder}.
@@ -41,7 +42,7 @@ class ToStringBuilderTests {
 
 	@Test
 	void appendWithIllegalName() {
-		ToStringBuilder builder = new ToStringBuilder("");
+		var builder = new ToStringBuilder("");
 
 		assertThrows(PreconditionViolationException.class, () -> builder.append(null, ""));
 		assertThrows(PreconditionViolationException.class, () -> builder.append("", ""));
@@ -129,7 +130,7 @@ class ToStringBuilderTests {
 	@SuppressWarnings("serial")
 	void withMapField() {
 		// @formatter:off
-		Map<String,Object> map = new LinkedHashMap<String,Object>() {{
+		Map<String,Object> map = new LinkedHashMap<>() {{
 			put("foo", 42);
 			put("bar", "enigma");
 		}};
@@ -140,7 +141,7 @@ class ToStringBuilderTests {
 
 	@Test
 	void withDemoImplementation() {
-		RoleModel roleModel = new RoleModel("Dilbert", 42);
+		var roleModel = new RoleModel("Dilbert", 42);
 		assertEquals("RoleModel [name = 'Dilbert', age = 42]", roleModel.toString());
 	}
 
@@ -153,7 +154,6 @@ class ToStringBuilderTests {
 		}
 
 		RoleModel(String name, int age) {
-			super();
 			this.name = name;
 			this.age = age;
 		}

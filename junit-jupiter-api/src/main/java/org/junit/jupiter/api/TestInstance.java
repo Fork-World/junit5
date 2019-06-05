@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -58,6 +58,7 @@ import org.apiguardian.api.API;
  * of {@code @TestInstance}.
  *
  * @since 5.0
+ * @see Nested @Nested
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -82,8 +83,8 @@ public @interface TestInstance {
 		PER_CLASS,
 
 		/**
-		 * When using this mode, a new test instance will be created for each test method
-		 * or test factory method.
+		 * When using this mode, a new test instance will be created for each test method,
+		 * test factory method, or test template method.
 		 *
 		 * <p>This mode is analogous to the behavior found in JUnit versions 1 through 4.
 		 *

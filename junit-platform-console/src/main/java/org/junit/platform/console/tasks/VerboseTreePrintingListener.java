@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.platform.console.tasks;
@@ -61,7 +61,7 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 		frames.push(System.currentTimeMillis());
 
 		long tests = testPlan.countTestIdentifiers(TestIdentifier::isTest);
-		printf(NONE, "Test plan execution started. Number of static tests: ");
+		printf(NONE, "%s", "Test plan execution started. Number of static tests: ");
 		printf(Color.TEST, "%d%n", tests);
 		printf(Color.CONTAINER, "%s%n", theme.root());
 	}
@@ -71,7 +71,7 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 		frames.pop();
 
 		long tests = testPlan.countTestIdentifiers(TestIdentifier::isTest);
-		printf(NONE, "Test plan execution finished. Number of all tests: ");
+		printf(NONE, "%s", "Test plan execution finished. Number of all tests: ");
 		printf(Color.TEST, "%d%n", tests);
 	}
 
@@ -94,6 +94,7 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 
 	@Override
 	public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+		testExecutionResult.getThrowable().ifPresent(t -> printDetail(Color.FAILED, "caught", readStackTrace(t)));
 		if (testIdentifier.isContainer()) {
 			Long creationMillis = frames.pop();
 			printVerticals(theme.end());
@@ -101,7 +102,6 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 			printf(NONE, " finished after %d ms.%n", System.currentTimeMillis() - creationMillis);
 			return;
 		}
-		testExecutionResult.getThrowable().ifPresent(t -> printDetail(Color.FAILED, "caught", readStackTrace(t)));
 		printDetail(NONE, "duration", "%d ms%n", System.currentTimeMillis() - executionStartedMillis);
 		String status = theme.status(testExecutionResult) + " " + testExecutionResult.getStatus();
 		printDetail(Color.valueOf(testExecutionResult), "status", "%s%n", status);
@@ -120,7 +120,7 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 	public void dynamicTestRegistered(TestIdentifier testIdentifier) {
 		printVerticals(theme.entry());
 		printf(Color.DYNAMIC, " %s", testIdentifier.getDisplayName());
-		printf(NONE, " dynamically registered%n");
+		printf(NONE, "%s%n", " dynamically registered");
 	}
 
 	@Override
@@ -171,7 +171,7 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 		String detailFormat = "%9s";
 		// omit detail string if it's empty
 		if (!detail.isEmpty()) {
-			printf(NONE, String.format(detailFormat + ": ", detail));
+			printf(NONE, "%s", String.format(detailFormat + ": ", detail));
 		}
 		// trivial case: at least one arg is given? Let printf do the entire work
 		if (args.length > 0) {
@@ -180,12 +180,12 @@ class VerboseTreePrintingListener implements TestExecutionListener {
 		}
 		// still here? Split format into separate lines and indent them from the second line on
 		String[] lines = format.split("\\R");
-		printf(color, lines[0]);
+		printf(color, "%s", lines[0]);
 		if (lines.length > 1) {
 			String delimiter = System.lineSeparator() + verticals + String.format(detailFormat + "    ", "");
 			for (int i = 1; i < lines.length; i++) {
-				printf(NONE, delimiter);
-				printf(color, lines[i]);
+				printf(NONE, "%s", delimiter);
+				printf(color, "%s", lines[i]);
 			}
 		}
 		printf(NONE, "%n");

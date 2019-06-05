@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.api;
@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.AssertionUtils.nullSafeGet;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.function.Executable;
+import org.junit.platform.commons.util.BlacklistedExceptions;
 import org.opentest4j.AssertionFailedError;
 
 /**
@@ -28,11 +29,9 @@ import org.opentest4j.AssertionFailedError;
  */
 class AssertThrows {
 
-	///CLOVER:OFF
 	private AssertThrows() {
 		/* no-op */
 	}
-	///CLOVER:ON
 
 	static <T extends Throwable> T assertThrows(Class<T> expectedType, Executable executable) {
 		return assertThrows(expectedType, executable, (Object) null);
@@ -44,6 +43,7 @@ class AssertThrows {
 
 	static <T extends Throwable> T assertThrows(Class<T> expectedType, Executable executable,
 			Supplier<String> messageSupplier) {
+
 		return assertThrows(expectedType, executable, (Object) messageSupplier);
 	}
 
@@ -59,6 +59,7 @@ class AssertThrows {
 				return (T) actualException;
 			}
 			else {
+				BlacklistedExceptions.rethrowIfBlacklisted(actualException);
 				String message = buildPrefix(nullSafeGet(messageOrSupplier))
 						+ format(expectedType, actualException.getClass(), "Unexpected exception type thrown");
 				throw new AssertionFailedError(message, actualException);

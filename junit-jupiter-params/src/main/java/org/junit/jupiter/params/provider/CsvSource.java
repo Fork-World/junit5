@@ -1,11 +1,11 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
  * accompanies this distribution and is available at
  *
- * http://www.eclipse.org/legal/epl-v20.html
+ * https://www.eclipse.org/legal/epl-v20.html
  */
 
 package org.junit.jupiter.params.provider;
@@ -22,7 +22,8 @@ import org.apiguardian.api.API;
 
 /**
  * {@code @CsvSource} is an {@link ArgumentsSource} which reads
- * comma-separated values (CSV) from its {@link #value} attribute.
+ * comma-separated values (CSV) from one or more supplied
+ * {@linkplain #value CSV lines}.
  *
  * <p>The supplied values will be provided as arguments to the
  * annotated {@code @ParameterizedTest} method.
@@ -43,14 +44,27 @@ public @interface CsvSource {
 	 * The CSV lines to use as source of arguments; must not be empty.
 	 *
 	 * <p>Each value corresponds to a line in a CSV file and will be split using
-	 * the specified {@link #delimiter()}.
+	 * the specified {@link #delimiter delimiter}.
 	 */
 	String[] value();
 
 	/**
-	 * The column delimiter to use when reading the
-	 * {@linkplain #value() values}.
+	 * The column delimiter to use when reading the {@linkplain #value lines}.
+	 *
+	 * <p>Defaults to {@code ','}.
 	 */
 	char delimiter() default ',';
+
+	/**
+	 * The empty value to use when reading the {@linkplain #value lines}.
+	 *
+	 * <p>This value replaces quoted empty strings read from the input.
+	 *
+	 * <p>Defaults to {@code ""}.
+	 *
+	 * @since 5.5
+	 */
+	@API(status = EXPERIMENTAL, since = "5.5")
+	String emptyValue() default "";
 
 }
